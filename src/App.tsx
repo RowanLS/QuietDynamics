@@ -174,9 +174,11 @@ function App() {
       >
         <div className="overlay">
           <h1>
-            Mathematical Screensavers
+            Quiet Dynamics
           </h1>
-
+          <h6>
+            Silent ASMR Mathematical Motion
+          </h6>
           <p>
             Double Pendulum
           </p>
