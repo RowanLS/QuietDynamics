@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-
+import type { ControlSettings } from "./ControlPanel";
 /**
  * Double-pendulum physical parameters.
  */
@@ -197,12 +197,23 @@ function clamp(
  * state remains outside React state so that the animation does not cause
  * React re-renders.
  */
-export function SimulationCanvas() {
+interface SimulationCanvasProps {
+    settings: ControlSettings;
+  }
+
+export function SimulationCanvas({
+    settings,
+  }: SimulationCanvasProps) {
   const canvasRef =
     useRef<HTMLCanvasElement>(null);
 
   const trailCanvasRef =
     useRef<HTMLCanvasElement>(null);
+
+  const settingsRef =
+    useRef(settings);
+
+  settingsRef.current = settings;
 
   useEffect(() => {
     const canvas =
@@ -260,7 +271,7 @@ export function SimulationCanvas() {
      */
     const TRAIL_LIFETIME_MS = 18_000;
 
-    const TRAIL_CAPACITY = 1800;
+    const TRAIL_CAPACITY = 5000;
 
     const trail =
       new TrailBuffer(
@@ -712,35 +723,38 @@ export function SimulationCanvas() {
      * --------------------------------------------------------------
      */
 
-    /**
+/**
+ * Render the visible mathematical trajectory.
+ *
+ * The glow is drawn as ONE continuous path across the entire trail.
+ * The bright core is then drawn in smaller gradient chunks so that the
+ * rainbow follows the trajectory smoothly.
+ */
+/**
  * Render the currently visible trajectory.
  *
- * The trail is rebuilt from the surviving mathematical points each frame.
- * This gives every part of the trail a smooth, continuous fade and ensures
- * expired points disappear completely.
+ * The trail is reconstructed from mathematical history each frame.
+ * Expired points are removed from the circular buffer, so old pixels
+ * disappear completely.
  *
- * The trail is rendered in chunks to keep the number of Canvas drawing
- * operations bounded, while each chunk gets a smooth colour gradient.
+ * The broad glow is rendered as one continuous path to avoid the
+ * flickering/dot effect. The rainbow core is rendered in chunks so
+ * that colour and opacity can vary along the trajectory.
  */
 const drawTrail = (
     now: number,
   ): void => {
-    const cutoff =
-      now - TRAIL_LIFETIME_MS;
+    const currentSettings =
+      settingsRef.current;
 
-    /*
-     * Remove points whose lifetime has expired.
-     * TrailBuffer is chronological, so this only examines points that
-     * are actually being discarded.
-     */
+    const trailLifetimeMs =
+      currentSettings.trailLifetime * 1000;
+
+    const cutoff =
+      now - trailLifetimeMs;
+
     trail.discardBefore(cutoff);
 
-    /*
-     * Clear the trail bitmap completely.
-     *
-     * We redraw the mathematical history below, so there is no
-     * accumulation of stale pixels.
-     */
     trailContext.clearRect(
       0,
       0,
@@ -753,58 +767,63 @@ const drawTrail = (
     }
 
     /*
-     * Render the trajectory in small chunks.
-     *
-     * Each chunk is one Canvas path, rather than one path per segment.
-     * This keeps the cost manageable even with a long trail.
+     * Glow control is 0-200 in the UI.
      */
-    for (
-      let start = 1;
-      start < trail.length;
-      start += TRAIL_CHUNK_SIZE
-    ) {
-      const end = Math.min(
-        trail.length,
-        start + TRAIL_CHUNK_SIZE,
-      );
-
-      const first =
-        trail.get(start - 1);
-
-      const last =
-        trail.get(end - 1);
-
-      /*
-       * ------------------------------------------------------------
-       * Glow
-       * ------------------------------------------------------------
-       *
-       * Use the newest point's hue for the broad glow. The bright
-       * underlying line gets the detailed rainbow gradient.
-       */
-      const glowColour =
-        `hsl(${last.hue} 100% 60%)`;
-
-      /*
-       * The chunk's opacity is based on its oldest point.
-       * This prevents the entire trail from being recomputed point-by-point
-       * while still giving a smooth fade from recent to old chunks.
-       */
-      const age =
-        now - first.time;
-
-      const ageFraction = clamp(
-        age / TRAIL_LIFETIME_MS,
+    const glowAmount =
+      clamp(
+        currentSettings.glow / 200,
         0,
         1,
       );
 
-      const brightness =
-        Math.pow(
-          1 - ageFraction,
-          1.7,
-        );
+    const glowStrength =
+      Math.pow(
+        glowAmount,
+        0.8,
+      );
 
+    /*
+     * --------------------------------------------------------------
+     * 1. Continuous broad glow
+     * --------------------------------------------------------------
+     *
+     * ONE path for the entire trajectory.
+     *
+     * This avoids the "dots with halos" problem caused by putting
+     * separate glow effects on each chunk.
+     */
+    const first =
+      trail.get(0);
+
+    const newest =
+      trail.get(
+        trail.length - 1,
+      );
+
+    const newestAge =
+      now - newest.time;
+
+    const newestAgeFraction =
+      clamp(
+        newestAge /
+          trailLifetimeMs,
+        0,
+        1,
+      );
+
+    /*
+     * The newest point controls the overall glow intensity.
+     */
+    const newestBrightness =
+      Math.pow(
+        1 - newestAgeFraction,
+        3.0,
+      );
+
+    if (
+      newestBrightness > 0 &&
+      glowStrength > 0
+    ) {
       trailContext.save();
 
       trailContext.lineCap =
@@ -812,94 +831,6 @@ const drawTrail = (
 
       trailContext.lineJoin =
         "round";
-
-      /*
-       * ------------------------------------------------------------
-       * Build the rainbow gradient
-       * ------------------------------------------------------------
-       *
-       * The gradient receives the stored hue of each point in the
-       * chunk, so the colour changes continuously rather than using
-       * one colour for the entire chunk.
-       */
-      const gradient =
-        trailContext.createLinearGradient(
-          first.x,
-          first.y,
-          last.x,
-          last.y,
-        );
-
-      for (
-        let i = start - 1;
-        i < end;
-        i += 1
-      ) {
-        const point =
-          trail.get(i);
-
-        /*
-         * Position within this chunk.
-         */
-        const position =
-          (
-            i - (start - 1)
-          ) /
-          Math.max(
-            1,
-            end - start,
-          );
-
-        /*
-         * Give each point its own age-dependent alpha.
-         * This makes the fade continuous along the trail.
-         */
-        const pointAge =
-          now - point.time;
-
-        const pointAgeFraction =
-          clamp(
-            pointAge /
-              TRAIL_LIFETIME_MS,
-            0,
-            1,
-          );
-
-        const pointBrightness =
-          Math.pow(
-            1 - pointAgeFraction,
-            1.7,
-          );
-
-        gradient.addColorStop(
-          clamp(
-            position,
-            0,
-            1,
-          ),
-          `hsla(${point.hue} 100% 70% / ${
-            0.82 * pointBrightness
-          })`,
-        );
-      }
-
-      /*
-       * ------------------------------------------------------------
-       * Glow
-       * ------------------------------------------------------------
-       */
-
-      trailContext.shadowBlur = 10;
-
-      trailContext.shadowColor =
-        glowColour;
-
-      trailContext.strokeStyle =
-        `hsla(${last.hue} 100% 60% / ${
-          0.18 * brightness
-        })`;
-
-      trailContext.lineWidth = 4;
 
       trailContext.beginPath();
 
@@ -909,8 +840,8 @@ const drawTrail = (
       );
 
       for (
-        let i = start;
-        i < end;
+        let i = 1;
+        i < trail.length;
         i += 1
       ) {
         const point =
@@ -922,26 +853,155 @@ const drawTrail = (
         );
       }
 
+      /*
+       * Broad atmospheric halo.
+       */
+      trailContext.strokeStyle =
+        `hsla(${newest.hue} 100% 60% / ${
+          0.035 *
+          glowStrength *
+          newestBrightness
+        })`;
+
+      trailContext.lineWidth =
+        8 +
+        30 * glowStrength;
+
       trailContext.stroke();
 
       /*
-       * ------------------------------------------------------------
-       * Bright rainbow core
-       * ------------------------------------------------------------
+       * Narrower, brighter halo.
        */
+      trailContext.strokeStyle =
+        `hsla(${newest.hue} 100% 68% / ${
+          0.08 *
+          glowStrength *
+          newestBrightness
+        })`;
 
-      trailContext.shadowBlur = 0;
+      trailContext.lineWidth =
+        3 +
+        9 * glowStrength;
+
+      trailContext.stroke();
+
+      trailContext.restore();
+    }
+
+    /*
+     * --------------------------------------------------------------
+     * 2. Rainbow core
+     * --------------------------------------------------------------
+     *
+     * The core is chunked so that colour and brightness can vary along
+     * the trajectory without creating thousands of Canvas operations.
+     */
+    for (
+      let start = 1;
+      start < trail.length;
+      start += TRAIL_CHUNK_SIZE
+    ) {
+      const end =
+        Math.min(
+          trail.length,
+          start + TRAIL_CHUNK_SIZE,
+        );
+
+      const chunkFirst =
+        trail.get(start - 1);
+
+      const chunkLast =
+        trail.get(end - 1);
+
+      /*
+       * Skip chunks that are completely expired.
+       */
+      if (
+        now -
+          chunkLast.time >=
+        trailLifetimeMs
+      ) {
+        continue;
+      }
+
+      const gradient =
+        trailContext.createLinearGradient(
+          chunkFirst.x,
+          chunkFirst.y,
+          chunkLast.x,
+          chunkLast.y,
+        );
+
+      for (
+        let i = start - 1;
+        i < end;
+        i += 1
+      ) {
+        const point =
+          trail.get(i);
+
+        const localPosition =
+          (
+            i -
+            (start - 1)
+          ) /
+          Math.max(
+            1,
+            end - start,
+          );
+
+        const age =
+          now - point.time;
+
+        const ageFraction =
+          clamp(
+            age /
+              trailLifetimeMs,
+            0,
+            1,
+          );
+
+        /*
+         * Steeper fade gives a cleaner disappearing tail.
+         */
+        const brightness =
+          Math.pow(
+            1 - ageFraction,
+            3.0,
+          );
+
+        gradient.addColorStop(
+          clamp(
+            localPosition,
+            0,
+            1,
+          ),
+          `hsla(${point.hue} 100% 72% / ${
+            0.82 * brightness
+          })`,
+        );
+      }
+
+      trailContext.save();
+
+      trailContext.lineCap =
+        "round";
+
+      trailContext.lineJoin =
+        "round";
 
       trailContext.strokeStyle =
         gradient;
 
-      trailContext.lineWidth = 1.3;
+      trailContext.lineWidth =
+        1.2 +
+        0.35 * glowStrength;
 
       trailContext.beginPath();
 
       trailContext.moveTo(
-        first.x,
-        first.y,
+        chunkFirst.x,
+        chunkFirst.y,
       );
 
       for (
@@ -1105,8 +1165,12 @@ const drawTrail = (
       previousTime =
         time;
 
+    const currentSettings =
+        settingsRef.current;
+
       accumulator +=
-        elapsed;
+        elapsed *
+        currentSettings.simulationSpeed;
 
       let safety = 0;
 
@@ -1140,8 +1204,14 @@ const drawTrail = (
         time,
       });
 
-      hue =
-        (hue + 0.75) %
+
+
+        hue =
+        (
+            hue +
+            0.75 *
+            currentSettings.rainbowSpeed
+        ) %
         360;
 
       drawTrail(time);

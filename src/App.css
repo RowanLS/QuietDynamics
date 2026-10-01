@@ -79,3 +79,83 @@ input {
   margin: 0.4rem 0 0;
   opacity: 0.65;
 }
+
+.controls-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 20;
+
+  padding: 0.55rem 0.8rem;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  background: rgba(7, 16, 24, 0.6);
+  color: rgba(255, 255, 255, 0.72);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  cursor: pointer;
+}
+
+.controls-toggle:hover {
+  background: rgba(7, 16, 24, 0.82);
+  color: white;
+}
+
+.controls-wrapper {
+  position: absolute;
+  top: 3.8rem;
+  right: 1rem;
+  z-index: 20;
+}
+
+.controls-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+
+  padding: 0;
+  border: 0;
+
+  background: transparent;
+  cursor: default;
+}
+
+.ui-layer {
+  position: absolute;
+  inset: 0;
+
+  z-index: 20;
+
+  pointer-events: none;
+
+  transition:
+    opacity 500ms ease;
+}
+
+.ui-visible {
+  opacity: 1;
+}
+
+.ui-hidden {
+  opacity: 0;
+}
+
+/*
+ * Individual interactive controls need pointer events because
+ * ui-layer itself deliberately ignores them.
+ */
+.ui-layer .controls-toggle {
+  pointer-events: auto;
+}
+
+/*
+ * Don't allow an invisible Controls button to remain clickable
+ * after the interface has faded away.
+ */
+.ui-hidden .controls-toggle {
+  pointer-events: none;
+}
