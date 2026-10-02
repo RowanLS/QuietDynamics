@@ -23,9 +23,18 @@ const DEFAULT_SETTINGS: ControlSettings = {
   glow: 100,
   rainbowSpeed: 0.8,
   simulationSpeed: 1,
+  m1: 1,
+  m2: 1.37,
+  l1: 1,
+  l2: 1,
+  gravity: 9.81,
+
+  initialAngle1: 2.6,
+  initialAngle2: -0.9,
 };
 
 const UI_HIDE_DELAY = 4000;
+
 
 function App() {
   const [
@@ -45,6 +54,12 @@ function App() {
     setUiVisible,
   ] = useState(true);
 
+  const [resetVersion, setResetVersion] =
+    useState(0);
+
+  const [randomiseVersion, setRandomiseVersion] =
+    useState(0);
+
   const hideTimerRef =
     useRef<number | null>(null);
 
@@ -54,10 +69,22 @@ function App() {
   const updateSettings = (
     updates: Partial<ControlSettings>,
   ) => {
+    const changesInitialConditions =
+      updates.initialAngle1 !==
+        undefined ||
+      updates.initialAngle2 !==
+        undefined;
+
     setSettings((current) => ({
       ...current,
       ...updates,
     }));
+
+    if (changesInitialConditions) {
+      setResetVersion(
+        (version) => version + 1,
+      );
+    }
   };
 
   const clearHideTimer = () => {
@@ -162,6 +189,8 @@ function App() {
     <main className="app">
       <SimulationCanvas
         settings={settings}
+        resetVersion={resetVersion}
+        randomiseVersion={randomiseVersion}
       />
 
       <div
@@ -219,6 +248,16 @@ function App() {
             <ControlPanel
               settings={settings}
               onChange={updateSettings}
+              onReset={() => {
+                setResetVersion(
+                  (version) => version + 1,
+                );
+              }}
+              onRandomise={() => {
+                setRandomiseVersion(
+                  (version) => version + 1,
+                );
+              }}
             />
           </div>
         </>

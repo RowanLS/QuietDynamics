@@ -5,6 +5,15 @@ export interface ControlSettings {
   glow: number;
   rainbowSpeed: number;
   simulationSpeed: number;
+
+  m1: number;
+  m2: number;
+  l1: number;
+  l2: number;
+  gravity: number;
+
+  initialAngle1: number;
+  initialAngle2: number;
 }
 
 interface ControlPanelProps {
@@ -117,50 +126,66 @@ export function ControlPanel({
       <section className="control-section">
         <h2>Physics</h2>
 
-        <StaticSlider
-          label="Mass 1"
-          min="0.2"
-          max="3"
-          step="0.01"
-          value="1"
-          output="1.00"
+        <Slider
+        label="Mass 1"
+        min="0.2"
+        max="3"
+        step="0.01"
+        value={String(settings.m1)}
+        output={settings.m1.toFixed(2)}
+        onChange={(value) =>
+            onChange({ m1: value })
+        }
         />
 
-        <StaticSlider
-          label="Mass 2"
-          min="0.2"
-          max="3"
-          step="0.01"
-          value="1.37"
-          output="1.37"
+        <Slider
+        label="Mass 2"
+        min="0.2"
+        max="3"
+        step="0.01"
+        value={String(settings.m2)}
+        output={settings.m2.toFixed(2)}
+        onChange={(value) =>
+            onChange({ m2: value })
+        }
         />
 
-        <StaticSlider
-          label="Length 1"
-          min="0.4"
-          max="2.2"
-          step="0.01"
-          value="1"
-          output="1.00"
+        <Slider
+        label="Length 1"
+        min="0.4"
+        max="2.2"
+        step="0.01"
+        value={String(settings.l1)}
+        output={settings.l1.toFixed(2)}
+        onChange={(value) =>
+            onChange({ l1: value })
+        }
         />
 
-        <StaticSlider
-          label="Length 2"
-          min="0.4"
-          max="2.2"
-          step="0.01"
-          value="1"
-          output="1.00"
+        <Slider
+        label="Length 2"
+        min="0.4"
+        max="2.2"
+        step="0.01"
+        value={String(settings.l2)}
+        output={settings.l2.toFixed(2)}
+        onChange={(value) =>
+            onChange({ l2: value })
+        }
         />
 
-        <StaticSlider
-          label="Gravity"
-          min="1"
-          max="20"
-          step="0.01"
-          value="9.81"
-          output="9.81 m/s²"
+        <Slider
+        label="Gravity"
+        min="1"
+        max="20"
+        step="0.01"
+        value={String(settings.gravity)}
+        output={`${settings.gravity.toFixed(2)} m/s²`}
+        onChange={(value) =>
+            onChange({ gravity: value })
+        }
         />
+
       </section>
 
       <section className="control-section">
@@ -184,22 +209,32 @@ export function ControlPanel({
           }
         />
 
-        <StaticSlider
-          label="Initial angle 1"
-          min="-3.14"
-          max="3.14"
-          step="0.01"
-          value="2.6"
-          output="2.60 rad"
+        <Slider
+        label="Initial angle 1"
+        min={String(-Math.PI)}
+        max={String(Math.PI)}
+        step="0.01"
+        value={String(settings.initialAngle1)}
+        output={`${settings.initialAngle1.toFixed(2)} rad`}
+        onChange={(value) =>
+            onChange({
+            initialAngle1: value,
+            })
+        }
         />
 
-        <StaticSlider
-          label="Initial angle 2"
-          min="-3.14"
-          max="3.14"
-          step="0.01"
-          value="-0.9"
-          output="-0.90 rad"
+        <Slider
+        label="Initial angle 2"
+        min={String(-Math.PI)}
+        max={String(Math.PI)}
+        step="0.01"
+        value={String(settings.initialAngle2)}
+        output={`${settings.initialAngle2.toFixed(2)} rad`}
+        onChange={(value) =>
+            onChange({
+            initialAngle2: value,
+            })
+        }
         />
       </section>
 
@@ -275,42 +310,4 @@ function Slider({
   );
 }
 
-interface StaticSliderProps {
-  label: string;
-  min: string;
-  max: string;
-  step: string;
-  value: string;
-  output: string;
-}
 
-/**
- * Temporarily presentational slider for parameters we have not
- * connected to the simulation state yet.
- */
-function StaticSlider({
-  label,
-  min,
-  max,
-  step,
-  value,
-  output,
-}: StaticSliderProps) {
-  return (
-    <label className="control slider-control">
-      <span>
-        <span>{label}</span>
-        <output>{output}</output>
-      </span>
-
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        defaultValue={value}
-        aria-label={label}
-      />
-    </label>
-  );
-}

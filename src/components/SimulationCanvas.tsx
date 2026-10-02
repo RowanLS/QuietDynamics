@@ -2,25 +2,6 @@ import { useEffect, useRef } from "react";
 import type { ControlSettings } from "./ControlPanel";
 
 /**
- * Double-pendulum physical parameters.
- */
-interface Parameters {
-  m1: number;
-  m2: number;
-  l1: number;
-  l2: number;
-  g: number;
-}
-
-const PARAMETERS: Parameters = {
-  m1: 1,
-  m2: 1.37,
-  l1: 1,
-  l2: 1,
-  g: 9.81,
-};
-
-/**
  * One recorded point of the second bob's trajectory.
  */
 interface TrailPoint {
@@ -213,10 +194,14 @@ function clamp(
  */
 interface SimulationCanvasProps {
   settings: ControlSettings;
+  resetVersion: number;
+  randomiseVersion: number;
 }
 
 export function SimulationCanvas({
   settings,
+  resetVersion,
+  randomiseVersion
 }: SimulationCanvasProps) {
   const canvasRef =
     useRef<HTMLCanvasElement>(null);
@@ -228,6 +213,18 @@ export function SimulationCanvas({
     useRef(settings);
 
   settingsRef.current = settings;
+
+  const resetVersionRef =
+    useRef(resetVersion);
+
+  const randomiseVersionRef =
+    useRef(randomiseVersion);
+
+  resetVersionRef.current =
+    resetVersion;
+
+  randomiseVersionRef.current =
+    randomiseVersion;
 
   useEffect(() => {
     const canvas =
@@ -248,6 +245,12 @@ export function SimulationCanvas({
 
     const trailContext =
       trailCanvas.getContext("2d");
+
+    let handledResetVersion =
+      resetVersionRef.current;
+
+    let handledRandomiseVersion =
+      randomiseVersionRef.current;
 
     if (!context || !trailContext) {
       console.error(
@@ -284,7 +287,7 @@ export function SimulationCanvas({
     const TRAIL_SAMPLE_INTERVAL =
       1000 / TRAIL_SAMPLE_RATE;
 
-    const MAX_TRAIL_LIFETIME_SECONDS = 18;
+    const MAX_TRAIL_LIFETIME_SECONDS = 40;
     const TRAIL_CAPACITY =
       Math.ceil(
         MAX_TRAIL_LIFETIME_SECONDS *
@@ -429,6 +432,38 @@ export function SimulationCanvas({
      */
 
     const reset = (): void => {
+      const currentSettings =
+        settingsRef.current;
+
+      theta1 =
+        currentSettings.initialAngle1;
+
+      theta2 =
+        currentSettings.initialAngle2;
+
+      omega1 = 0;
+      omega2 = 0;
+
+      trailSequence = 0;
+      trail.clear();
+
+      trailSampleAccumulator =
+        TRAIL_SAMPLE_INTERVAL;
+
+      trailContext.clearRect(
+        0,
+        0,
+        width,
+        height,
+      );
+
+      accumulator = 0;
+
+      previousTime =
+        performance.now();
+    };
+
+    const randomise = (): void => {
       const seed =
         createSeed();
 
@@ -459,7 +494,6 @@ export function SimulationCanvas({
         random() * 360;
 
       trailSequence = 0;
-
       trail.clear();
 
       trailSampleAccumulator =
@@ -473,10 +507,10 @@ export function SimulationCanvas({
       );
 
       accumulator = 0;
+
       previousTime =
         performance.now();
     };
-
     /*
      * --------------------------------------------------------------
      * Double-pendulum equations
@@ -495,8 +529,8 @@ export function SimulationCanvas({
         m2,
         l1,
         l2,
-        g,
-      } = PARAMETERS;
+        gravity: g,
+      } = settingsRef.current;
 
       /* k1 */
       let delta =
@@ -861,6 +895,10 @@ export function SimulationCanvas({
      * Update and return the reusable pendulum position object.
      */
     const updatePositions = () => {
+      const {
+        l1,
+        l2,
+      } = settingsRef.current;
       const x0 =
         width * 0.5;
 
@@ -876,25 +914,25 @@ export function SimulationCanvas({
       const x1 =
         x0 +
         Math.sin(theta1) *
-          PARAMETERS.l1 *
+          l1 *
           scale;
 
       const y1 =
         y0 +
         Math.cos(theta1) *
-          PARAMETERS.l1 *
+          l1 *
           scale;
 
       const x2 =
         x1 +
         Math.sin(theta2) *
-          PARAMETERS.l2 *
+          l2 *
           scale;
 
       const y2 =
         y1 +
         Math.cos(theta2) *
-          PARAMETERS.l2 *
+          l2 *
           scale;
 
       position.x0 = x0;
@@ -1000,7 +1038,6 @@ export function SimulationCanvas({
        *
        * Chunks are anchored to TrailPoint.sequence rather than the
        * current buffer index.
-       *
        * This is important: when discardBefore() removes an old point,
        * the remaining chunks do NOT move their boundaries.
        */
@@ -1324,6 +1361,11 @@ export function SimulationCanvas({
     const drawPendulum = (
       currentPosition: typeof position,
     ): void => {
+      const {
+        m1,
+        m2,
+      } = settingsRef.current;
+
       context.clearRect(
         0,
         0,
@@ -1356,7 +1398,7 @@ export function SimulationCanvas({
       context.arc(
         currentPosition.x1,
         currentPosition.y1,
-        8 + PARAMETERS.m1,
+        8 + m1,
         0,
         Math.PI * 2,
       );
@@ -1368,7 +1410,7 @@ export function SimulationCanvas({
       context.arc(
         currentPosition.x2,
         currentPosition.y2,
-        9 + PARAMETERS.m2,
+        9 + m2,
         0,
         Math.PI * 2,
       );
@@ -1411,6 +1453,26 @@ export function SimulationCanvas({
 
       const currentSettings =
         settingsRef.current;
+
+      if (
+        resetVersionRef.current !==
+        handledResetVersion
+      ) {
+        handledResetVersion =
+          resetVersionRef.current;
+
+        reset();
+      }
+
+      if (
+        randomiseVersionRef.current !==
+        handledRandomiseVersion
+      ) {
+        handledRandomiseVersion =
+          randomiseVersionRef.current;
+
+        randomise();
+      }
 
       accumulator +=
         elapsed *
@@ -1516,7 +1578,7 @@ export function SimulationCanvas({
     };
 
     const handleDoubleClick = (): void => {
-      reset();
+      randomise();
     };
 
     const handleVisibilityChange = (): void => {
@@ -1560,7 +1622,7 @@ export function SimulationCanvas({
         event.key.toLowerCase() ===
         "r"
       ) {
-        reset();
+        randomise();
       }
     };
 
