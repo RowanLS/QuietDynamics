@@ -1,8 +1,5 @@
-title: Taking Space
-author: Rowan Lindsay-Smith
----
-# Taking Space
-This is a personal collection of relaxing mathematical animations.
+# Quiet Dynamics
+This is a personal collection of relaxing continuous mathematical and generative animations.
 
 ## First Release Aim
 | Page | Why |
