@@ -206,7 +206,7 @@ function App() {
             Quiet Dynamics
           </h1>
           <h6>
-            Silent ASMR Mathematical Motion
+            Mathematical motion, endlessly unfolding
           </h6>
           <p>
             Double Pendulum
