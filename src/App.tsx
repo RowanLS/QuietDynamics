@@ -21,6 +21,8 @@ const DEFAULT_SETTINGS: ControlSettings = {
 
   initialAngle1: 2.6,
   initialAngle2: -0.9,
+
+  paused: false,
 };
 
 const UI_HIDE_DELAY = 4000;
@@ -63,6 +65,19 @@ function App() {
     }
   }, []);
 
+  const handleFullscreen = async (): Promise<void> => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await document.documentElement.requestFullscreen();
+    } catch (error) {
+      console.error("Unable to change fullscreen state.", error);
+    }
+  };
+
   const revealUi = useCallback(() => {
     setUiVisible(true);
     clearHideTimer();
@@ -102,6 +117,32 @@ function App() {
 
       if (event.key === "Escape" && controlsOpen) {
         setControlsOpen(false);
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "BUTTON")
+      ) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "f") {
+        void handleFullscreen();
+        return;
+      }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        setSettings((current) => ({
+          ...current,
+          paused: !current.paused,
+        }));
       }
     };
 
@@ -160,11 +201,10 @@ function App() {
 
       {controlsOpen && (
         <>
-          <button
-            type="button"
+          <div
             className="controls-backdrop"
-            aria-label="Close controls"
             onClick={() => setControlsOpen(false)}
+            aria-hidden="true"
           />
 
           <div id="control-panel" className="controls-wrapper">
@@ -177,6 +217,7 @@ function App() {
               onRandomise={() => {
                 setRandomiseVersion((version) => version + 1);
               }}
+              onFullscreen={handleFullscreen}
             />
           </div>
         </>

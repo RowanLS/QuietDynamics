@@ -14,6 +14,8 @@ export interface ControlSettings {
 
   initialAngle1: number;
   initialAngle2: number;
+
+  paused: boolean;
 }
 
 interface ControlPanelProps {
@@ -21,6 +23,7 @@ interface ControlPanelProps {
   onChange: (updates: Partial<ControlSettings>) => void;
   onRandomise?: () => void;
   onReset?: () => void;
+  onFullscreen?: () => void;
 }
 
 /**
@@ -35,6 +38,7 @@ export function ControlPanel({
   onChange,
   onRandomise,
   onReset,
+  onFullscreen,
 }: ControlPanelProps) {
   return (
     <aside className="control-panel">
@@ -208,13 +212,25 @@ export function ControlPanel({
         <button
           type="button"
           className="control-button control-button-primary"
-          onClick={onRandomise}
+          onClick={() =>
+            onChange({
+              paused: !settings.paused,
+            })
+          }
         >
-          Randomise
+          {settings.paused ? "Resume" : "Pause"}
         </button>
 
         <button type="button" className="control-button" onClick={onReset}>
           Reset
+        </button>
+
+        <button type="button" className="control-button" onClick={onRandomise}>
+          Randomise
+        </button>
+
+        <button type="button" className="control-button" onClick={onFullscreen}>
+          Fullscreen
         </button>
       </div>
     </aside>
