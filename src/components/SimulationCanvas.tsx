@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import type { ControlSettings } from "../types/settings";
 import { TrailBuffer } from "../engine/TrailBuffer";
+import { integrateRK4 } from "../simulations/doublePendulum/physics";
+
+import type { DoublePendulumState } from "../simulations/doublePendulum/physics";
 
 /**
  * Clamp a number to a range.
@@ -67,10 +70,15 @@ export function SimulationCanvas({
      * --------------------------------------------------------------
      */
 
-    let theta1 = 2.6;
-    let theta2 = -0.9;
-    let omega1 = 0;
-    let omega2 = 0;
+    let state: DoublePendulumState = {
+      theta1: settingsRef.current.initialAngle1,
+
+      theta2: settingsRef.current.initialAngle2,
+
+      omega1: settingsRef.current.initialOmega1,
+
+      omega2: settingsRef.current.initialOmega2,
+    };
 
     /*
      * --------------------------------------------------------------
@@ -179,13 +187,15 @@ export function SimulationCanvas({
     const reset = (): void => {
       const currentSettings = settingsRef.current;
 
-      theta1 = currentSettings.initialAngle1;
+      state = {
+        theta1: currentSettings.initialAngle1,
 
-      theta2 = currentSettings.initialAngle2;
+        theta2: currentSettings.initialAngle2,
 
-      omega1 = currentSettings.initialOmega1;
+        omega1: currentSettings.initialOmega1,
 
-      omega2 = currentSettings.initialOmega2;
+        omega2: currentSettings.initialOmega2,
+      };
 
       hue = currentSettings.startingHue;
 
@@ -201,166 +211,6 @@ export function SimulationCanvas({
 
       previousTime = performance.now();
     };
-
-    /*
-     * --------------------------------------------------------------
-     * Double-pendulum equations
-     * --------------------------------------------------------------
-     *
-     * This version avoids allocating a derivative object four times
-     * for every RK4 step. All intermediate derivatives stay in scalar
-     * locals, which reduces garbage collection pressure in the hot loop.
-     */
-
-    const integrate = (dt: number): void => {
-      const { m1, m2, l1, l2, gravity: g } = settingsRef.current;
-
-      /* k1 */
-      let delta = theta1 - theta2;
-
-      let sinDelta = Math.sin(delta);
-      let cosDelta = Math.cos(delta);
-
-      let denominator = 2 * m1 + m2 - m2 * Math.cos(2 * delta);
-
-      const k1t1 = omega1;
-      const k1t2 = omega2;
-
-      const k1w1 =
-        (-g * (2 * m1 + m2) * Math.sin(theta1) -
-          m2 * g * Math.sin(theta1 - 2 * theta2) -
-          2 *
-            sinDelta *
-            m2 *
-            (omega2 * omega2 * l2 + omega1 * omega1 * l1 * cosDelta)) /
-        (l1 * denominator);
-
-      const k1w2 =
-        (2 *
-          sinDelta *
-          (omega1 * omega1 * l1 * (m1 + m2) +
-            g * (m1 + m2) * Math.cos(theta1) +
-            omega2 * omega2 * l2 * m2 * cosDelta)) /
-        (l2 * denominator);
-
-      /* k2 */
-      const theta1K2 = theta1 + k1t1 * dt * 0.5;
-      const theta2K2 = theta2 + k1t2 * dt * 0.5;
-      const omega1K2 = omega1 + k1w1 * dt * 0.5;
-      const omega2K2 = omega2 + k1w2 * dt * 0.5;
-
-      delta = theta1K2 - theta2K2;
-      sinDelta = Math.sin(delta);
-      cosDelta = Math.cos(delta);
-
-      denominator = 2 * m1 + m2 - m2 * Math.cos(2 * delta);
-
-      const k2t1 = omega1K2;
-      const k2t2 = omega2K2;
-
-      const k2w1 =
-        (-g * (2 * m1 + m2) * Math.sin(theta1K2) -
-          m2 * g * Math.sin(theta1K2 - 2 * theta2K2) -
-          2 *
-            sinDelta *
-            m2 *
-            (omega2K2 * omega2K2 * l2 + omega1K2 * omega1K2 * l1 * cosDelta)) /
-        (l1 * denominator);
-
-      const k2w2 =
-        (2 *
-          sinDelta *
-          (omega1K2 * omega1K2 * l1 * (m1 + m2) +
-            g * (m1 + m2) * Math.cos(theta1K2) +
-            omega2K2 * omega2K2 * l2 * m2 * cosDelta)) /
-        (l2 * denominator);
-
-      /* k3 */
-      const theta1K3 = theta1 + k2t1 * dt * 0.5;
-      const theta2K3 = theta2 + k2t2 * dt * 0.5;
-      const omega1K3 = omega1 + k2w1 * dt * 0.5;
-      const omega2K3 = omega2 + k2w2 * dt * 0.5;
-
-      delta = theta1K3 - theta2K3;
-      sinDelta = Math.sin(delta);
-      cosDelta = Math.cos(delta);
-
-      denominator = 2 * m1 + m2 - m2 * Math.cos(2 * delta);
-
-      const k3t1 = omega1K3;
-      const k3t2 = omega2K3;
-
-      const k3w1 =
-        (-g * (2 * m1 + m2) * Math.sin(theta1K3) -
-          m2 * g * Math.sin(theta1K3 - 2 * theta2K3) -
-          2 *
-            sinDelta *
-            m2 *
-            (omega2K3 * omega2K3 * l2 + omega1K3 * omega1K3 * l1 * cosDelta)) /
-        (l1 * denominator);
-
-      const k3w2 =
-        (2 *
-          sinDelta *
-          (omega1K3 * omega1K3 * l1 * (m1 + m2) +
-            g * (m1 + m2) * Math.cos(theta1K3) +
-            omega2K3 * omega2K3 * l2 * m2 * cosDelta)) /
-        (l2 * denominator);
-
-      /* k4 */
-      const theta1K4 = theta1 + k3t1 * dt;
-      const theta2K4 = theta2 + k3t2 * dt;
-      const omega1K4 = omega1 + k3w1 * dt;
-      const omega2K4 = omega2 + k3w2 * dt;
-
-      delta = theta1K4 - theta2K4;
-      sinDelta = Math.sin(delta);
-      cosDelta = Math.cos(delta);
-
-      denominator = 2 * m1 + m2 - m2 * Math.cos(2 * delta);
-
-      const k4t1 = omega1K4;
-      const k4t2 = omega2K4;
-
-      const k4w1 =
-        (-g * (2 * m1 + m2) * Math.sin(theta1K4) -
-          m2 * g * Math.sin(theta1K4 - 2 * theta2K4) -
-          2 *
-            sinDelta *
-            m2 *
-            (omega2K4 * omega2K4 * l2 + omega1K4 * omega1K4 * l1 * cosDelta)) /
-        (l1 * denominator);
-
-      const k4w2 =
-        (2 *
-          sinDelta *
-          (omega1K4 * omega1K4 * l1 * (m1 + m2) +
-            g * (m1 + m2) * Math.cos(theta1K4) +
-            omega2K4 * omega2K4 * l2 * m2 * cosDelta)) /
-        (l2 * denominator);
-
-      theta1 += (dt * (k1t1 + 2 * k2t1 + 2 * k3t1 + k4t1)) / 6;
-
-      theta2 += (dt * (k1t2 + 2 * k2t2 + 2 * k3t2 + k4t2)) / 6;
-
-      omega1 += (dt * (k1w1 + 2 * k2w1 + 2 * k3w1 + k4w1)) / 6;
-
-      omega2 += (dt * (k1w2 + 2 * k2w2 + 2 * k3w2 + k4w2)) / 6;
-
-      /*
-       * Recover from an unexpected numerical failure rather than
-       * allowing NaNs to propagate into the Canvas renderer.
-       */
-      if (
-        !Number.isFinite(theta1) ||
-        !Number.isFinite(theta2) ||
-        !Number.isFinite(omega1) ||
-        !Number.isFinite(omega2)
-      ) {
-        reset();
-      }
-    };
-
     /*
      * --------------------------------------------------------------
      * Geometry
@@ -387,13 +237,13 @@ export function SimulationCanvas({
 
       const scale = Math.min(width, height) * 0.14;
 
-      const x1 = x0 + Math.sin(theta1) * l1 * scale;
+      const x1 = x0 + Math.sin(state.theta1) * l1 * scale;
 
-      const y1 = y0 + Math.cos(theta1) * l1 * scale;
+      const y1 = y0 + Math.cos(state.theta1) * l1 * scale;
 
-      const x2 = x1 + Math.sin(theta2) * l2 * scale;
+      const x2 = x1 + Math.sin(state.theta2) * l2 * scale;
 
-      const y2 = y1 + Math.cos(theta2) * l2 * scale;
+      const y2 = y1 + Math.cos(state.theta2) * l2 * scale;
 
       position.x0 = x0;
       position.y0 = y0;
@@ -796,12 +646,34 @@ export function SimulationCanvas({
 
       let safety = 0;
 
+      const parameters = {
+        m1: currentSettings.m1,
+        m2: currentSettings.m2,
+        l1: currentSettings.l1,
+        l2: currentSettings.l2,
+        gravity: currentSettings.gravity,
+      };
+
       while (accumulator >= timestep && safety < 40) {
-        integrate(timestep);
+        state = integrateRK4(state, parameters, timestep);
+
         accumulator -= timestep;
+
         safety += 1;
       }
 
+      if (
+        !Number.isFinite(state.theta1) ||
+        !Number.isFinite(state.theta2) ||
+        !Number.isFinite(state.omega1) ||
+        !Number.isFinite(state.omega2)
+      ) {
+        console.error(
+          "Double-pendulum integration produced a non-finite state.",
+        );
+
+        reset();
+      }
       /*
        * If the safety limit was reached, discard the remainder rather
        * than carrying an expensive backlog into subsequent frames.
