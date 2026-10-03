@@ -1,29 +1,7 @@
 import "./ControlPanel.css";
+import type { ControlSettings, PaletteName } from "../types/settings";
 
-export type PaletteName = "neon-rainbow" | "rainbow" | "gradient" | "solid";
-
-export type BackgroundColour = string;
-
-export interface ControlSettings {
-  background: BackgroundColour;
-  palette: PaletteName;
-
-  trailLifetime: number;
-  glow: number;
-  rainbowSpeed: number;
-  simulationSpeed: number;
-
-  m1: number;
-  m2: number;
-  l1: number;
-  l2: number;
-  gravity: number;
-
-  initialAngle1: number;
-  initialAngle2: number;
-
-  paused: boolean;
-}
+export type { ControlSettings, PaletteName } from "../types/settings";
 
 interface ControlPanelProps {
   settings: ControlSettings;
@@ -31,6 +9,7 @@ interface ControlPanelProps {
   onRandomise?: () => void;
   onReset?: () => void;
   onFullscreen?: () => void;
+  onCopyLink?: () => void;
 }
 
 /**
@@ -46,12 +25,26 @@ export function ControlPanel({
   onRandomise,
   onReset,
   onFullscreen,
+  onCopyLink,
 }: ControlPanelProps) {
   return (
     <aside className="control-panel">
       <section className="control-section">
         <h2>Appearance</h2>
+        <div className="control seed-control">
+          <span>
+            <span>Seed</span>
+            <output>{settings.seed}</output>
+          </span>
 
+          <button
+            type="button"
+            className="control-button control-button-small"
+            onClick={onCopyLink}
+          >
+            Copy link
+          </button>
+        </div>
         <label className="control">
           <span>Background</span>
 

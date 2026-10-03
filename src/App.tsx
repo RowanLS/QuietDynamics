@@ -4,15 +4,24 @@ import { SimulationCanvas } from "./components/SimulationCanvas";
 
 import { ControlPanel } from "./components/ControlPanel";
 
-import type { ControlSettings } from "./components/ControlPanel";
+import {
+  createRandomConfig,
+  createSeed,
+} from "./simulations/doublePendulum/randomise";
+
+import { getSeedFromUrl, getShareUrl, setSeedInUrl } from "./utils/urlState";
+
+import type { ControlSettings } from "./types/settings";
 
 import "./App.css";
 
 const DEFAULT_SETTINGS: ControlSettings = {
+  seed: 42,
   background: "#071018",
   palette: "neon-rainbow",
+  startingHue: 200,
 
-  trailLifetime: 12,
+  trailLifetime: 18,
   glow: 100,
   rainbowSpeed: 0.8,
   simulationSpeed: 1,
@@ -25,21 +34,29 @@ const DEFAULT_SETTINGS: ControlSettings = {
   initialAngle1: 2.6,
   initialAngle2: -0.9,
 
+  initialOmega1: 0,
+  initialOmega2: 0,
   paused: false,
 };
 
 const UI_HIDE_DELAY = 4000;
 
 function App() {
-  const [settings, setSettings] = useState<ControlSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ControlSettings>(() => {
+    const urlSeed = getSeedFromUrl();
+
+    if (urlSeed === null) {
+      return DEFAULT_SETTINGS;
+    }
+
+    return createRandomConfig(urlSeed, DEFAULT_SETTINGS);
+  });
 
   const [controlsOpen, setControlsOpen] = useState(false);
 
   const [uiVisible, setUiVisible] = useState(true);
 
   const [resetVersion, setResetVersion] = useState(0);
-
-  const [randomiseVersion, setRandomiseVersion] = useState(0);
 
   const hideTimerRef = useRef<number | null>(null);
 
@@ -56,6 +73,11 @@ function App() {
       ...updates,
     }));
 
+    /*
+     * Changing an initial condition means "restart from here".
+     *
+     * Other physics parameters remain live.
+     */
     if (changesInitialConditions) {
       setResetVersion((version) => version + 1);
     }
@@ -78,6 +100,26 @@ function App() {
       await document.documentElement.requestFullscreen();
     } catch (error) {
       console.error("Unable to change fullscreen state.", error);
+    }
+  };
+
+  const handleRandomise = () => {
+    const seed = createSeed();
+
+    setSettings((current) => createRandomConfig(seed, current));
+
+    setSeedInUrl(seed);
+
+    setResetVersion((version) => version + 1);
+  };
+
+  const handleCopyLink = async (): Promise<void> => {
+    try {
+      const url = getShareUrl(settings.seed);
+
+      await navigator.clipboard.writeText(url);
+    } catch (error) {
+      console.error("Unable to copy share URL.", error);
     }
   };
 
@@ -120,6 +162,11 @@ function App() {
 
       if (event.key === "Escape" && controlsOpen) {
         setControlsOpen(false);
+        return;
+      }
+
+      if (event.key.toLowerCase() === "r") {
+        handleRandomise();
         return;
       }
 
@@ -176,12 +223,21 @@ function App() {
       style={{
         backgroundColor: settings.background,
       }}
+      onDoubleClick={(event) => {
+        /*
+         * Don't randomise when the user double-clicks inside the panel.
+         */
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest(".control-panel")
+        ) {
+          return;
+        }
+
+        handleRandomise();
+      }}
     >
-      <SimulationCanvas
-        settings={settings}
-        resetVersion={resetVersion}
-        randomiseVersion={randomiseVersion}
-      />
+      <SimulationCanvas settings={settings} resetVersion={resetVersion} />
 
       <div
         className={`ui-layer ${
@@ -222,10 +278,9 @@ function App() {
               onReset={() => {
                 setResetVersion((version) => version + 1);
               }}
-              onRandomise={() => {
-                setRandomiseVersion((version) => version + 1);
-              }}
+              onRandomise={handleRandomise}
               onFullscreen={handleFullscreen}
+              onCopyLink={handleCopyLink}
             />
           </div>
         </>

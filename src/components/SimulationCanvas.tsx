@@ -1,135 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { ControlSettings } from "./ControlPanel";
-
-/**
- * One recorded point of the second bob's trajectory.
- */
-interface TrailPoint {
-  x: number;
-  y: number;
-  hue: number;
-  time: number;
-  /** Monotically increasing sample number to keep chunks spatially stable. */
-  sequence: number;
-}
-
-/**
- * Fixed-capacity circular buffer ordered from oldest to newest.
- *
- * Expired points can be removed from the front in O(number expired),
- * without scanning the entire buffer.
- */
-class TrailBuffer {
-  private readonly points: Array<TrailPoint | undefined>;
-  private readonly capacity: number;
-
-  private start = 0;
-  private count = 0;
-
-  constructor(capacity: number) {
-    this.capacity = capacity;
-
-    if (!Number.isInteger(capacity) || capacity <= 0) {
-      throw new Error("TrailBuffer capacity must be a positive integer.");
-    }
-
-    this.points = new Array(capacity);
-  }
-
-  clear(): void {
-    this.start = 0;
-    this.count = 0;
-  }
-
-  push(point: TrailPoint): void {
-    const index = (this.start + this.count) % this.capacity;
-
-    this.points[index] = point;
-
-    if (this.count < this.capacity) {
-      this.count += 1;
-      return;
-    }
-
-    // Buffer is full: overwrite the oldest point.
-    this.start = (this.start + 1) % this.capacity;
-  }
-
-  /**
-   * Remove all points older than the supplied timestamp.
-   */
-  discardBefore(timestamp: number): void {
-    while (this.count > 0) {
-      const point = this.points[this.start];
-
-      if (!point || point.time >= timestamp) {
-        break;
-      }
-
-      this.points[this.start] = undefined;
-
-      this.start = (this.start + 1) % this.capacity;
-
-      this.count -= 1;
-    }
-  }
-
-  get length(): number {
-    return this.count;
-  }
-
-  /**
-   * Checked accessor for non-hot call sites.
-   */
-  get(index: number): TrailPoint {
-    if (index < 0 || index >= this.count) {
-      throw new RangeError(`Trail index ${index} is out of range.`);
-    }
-
-    return this.getUnchecked(index);
-  }
-
-  /**
-   * Hot-path accessor.
-   *
-   * The renderer only calls this with indices known to be in range,
-   * so avoid repeated bounds/error checks in the animation loop.
-   */
-  getUnchecked(index: number): TrailPoint {
-    const point = this.points[(this.start + index) % this.capacity];
-
-    // This should be impossible while the buffer invariants hold.
-    if (!point) {
-      throw new Error("TrailBuffer contained an unexpected empty point.");
-    }
-
-    return point;
-  }
-}
-
-/**
- * Create a deterministic random-number generator.
- */
-function mulberry32(seed: number): () => number {
-  let value = seed >>> 0;
-
-  return () => {
-    let t = (value += 0x6d2b79f5);
-
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * Create a new random seed.
- */
-function createSeed(): number {
-  return Math.floor(Math.random() * 0xffffffff) >>> 0;
-}
+import type { ControlSettings } from "../types/settings";
+import { TrailBuffer } from "../engine/TrailBuffer";
 
 /**
  * Clamp a number to a range.
@@ -148,13 +19,11 @@ function clamp(value: number, minimum: number, maximum: number): number {
 interface SimulationCanvasProps {
   settings: ControlSettings;
   resetVersion: number;
-  randomiseVersion: number;
 }
 
 export function SimulationCanvas({
   settings,
   resetVersion,
-  randomiseVersion,
 }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -164,15 +33,12 @@ export function SimulationCanvas({
 
   const resetVersionRef = useRef(resetVersion);
 
-  const randomiseVersionRef = useRef(randomiseVersion);
-
   const wasPausedRef = useRef(false);
 
   useEffect(() => {
     settingsRef.current = settings;
     resetVersionRef.current = resetVersion;
-    randomiseVersionRef.current = randomiseVersion;
-  }, [settings, resetVersion, randomiseVersion]);
+  }, [settings, resetVersion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -190,8 +56,6 @@ export function SimulationCanvas({
 
     let handledResetVersion = resetVersionRef.current;
 
-    let handledRandomiseVersion = randomiseVersionRef.current;
-
     if (!context || !trailContext) {
       console.error("2D canvas rendering is unavailable.");
       return;
@@ -207,8 +71,6 @@ export function SimulationCanvas({
     let theta2 = -0.9;
     let omega1 = 0;
     let omega2 = 0;
-
-    let random = mulberry32(createSeed());
 
     /*
      * --------------------------------------------------------------
@@ -231,7 +93,7 @@ export function SimulationCanvas({
 
     let trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
 
-    let hue = random() * 360;
+    let hue = settingsRef.current.startingHue;
 
     let trailSequence = 0;
     /*
@@ -321,10 +183,14 @@ export function SimulationCanvas({
 
       theta2 = currentSettings.initialAngle2;
 
-      omega1 = 0;
-      omega2 = 0;
+      omega1 = currentSettings.initialOmega1;
+
+      omega2 = currentSettings.initialOmega2;
+
+      hue = currentSettings.startingHue;
 
       trailSequence = 0;
+
       trail.clear();
 
       trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
@@ -336,32 +202,6 @@ export function SimulationCanvas({
       previousTime = performance.now();
     };
 
-    const randomise = (): void => {
-      const seed = createSeed();
-
-      random = mulberry32(seed);
-
-      theta1 = -Math.PI + random() * Math.PI * 2;
-
-      theta2 = -Math.PI + random() * Math.PI * 2;
-
-      omega1 = (random() - 0.5) * 1.2;
-
-      omega2 = (random() - 0.5) * 1.2;
-
-      hue = random() * 360;
-
-      trailSequence = 0;
-      trail.clear();
-
-      trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
-
-      trailContext.clearRect(0, 0, width, height);
-
-      accumulator = 0;
-
-      previousTime = performance.now();
-    };
     /*
      * --------------------------------------------------------------
      * Double-pendulum equations
@@ -915,11 +755,6 @@ export function SimulationCanvas({
         reset();
       }
 
-      if (randomiseVersionRef.current !== handledRandomiseVersion) {
-        handledRandomiseVersion = randomiseVersionRef.current;
-
-        randomise();
-      }
       /*
        * When paused, leave the current Canvas contents untouched.
        *
@@ -1026,10 +861,6 @@ export function SimulationCanvas({
       resize();
     };
 
-    const handleDoubleClick = (): void => {
-      randomise();
-    };
-
     const handleVisibilityChange = (): void => {
       hidden = document.hidden;
 
@@ -1045,19 +876,9 @@ export function SimulationCanvas({
       animationFrame = requestAnimationFrame(frame);
     };
 
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key.toLowerCase() === "r") {
-        randomise();
-      }
-    };
-
     resize();
 
-    canvas.addEventListener("dblclick", handleDoubleClick);
-
     window.addEventListener("resize", handleResize);
-
-    window.addEventListener("keydown", handleKeyDown);
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -1066,11 +887,7 @@ export function SimulationCanvas({
     return () => {
       cancelAnimationFrame(animationFrame);
 
-      canvas.removeEventListener("dblclick", handleDoubleClick);
-
       window.removeEventListener("resize", handleResize);
-
-      window.removeEventListener("keydown", handleKeyDown);
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

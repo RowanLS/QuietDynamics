@@ -157,3 +157,17 @@
     width: min(290px, calc(100vw - 2rem));
   }
 }
+
+.seed-control {
+  margin-bottom: 1rem;
+}
+
+.seed-control > span:first-child {
+  margin-bottom: 0.5rem;
+}
+
+.control-button-small {
+  width: 100%;
+  min-height: 32px;
+  font-size: 0.75rem;
+}
