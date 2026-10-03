@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  # JavaScript / TypeScript dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+    open-pull-requests-limit: 5
+
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+
+    commit-message:
+      prefix: "deps"
+
+  # GitHub Actions themselves
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+    commit-message:
+      prefix: "ci"
