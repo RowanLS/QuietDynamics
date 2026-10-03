@@ -9,7 +9,11 @@ import {
   createSeed,
 } from "./simulations/doublePendulum/randomise";
 
-import { getSeedFromUrl, getShareUrl, setSeedInUrl } from "./utils/urlState";
+import {
+  getShareUrl,
+  loadSettingsFromUrl,
+  setSettingsInUrl,
+} from "./utils/urlState";
 
 import type { ControlSettings } from "./types/settings";
 
@@ -42,15 +46,9 @@ const DEFAULT_SETTINGS: ControlSettings = {
 const UI_HIDE_DELAY = 4000;
 
 function App() {
-  const [settings, setSettings] = useState<ControlSettings>(() => {
-    const urlSeed = getSeedFromUrl();
-
-    if (urlSeed === null) {
-      return DEFAULT_SETTINGS;
-    }
-
-    return createRandomConfig(urlSeed, DEFAULT_SETTINGS);
-  });
+  const [settings, setSettings] = useState<ControlSettings>(() =>
+    loadSettingsFromUrl(DEFAULT_SETTINGS),
+  );
 
   const [controlsOpen, setControlsOpen] = useState(false);
 
@@ -63,22 +61,27 @@ function App() {
   /**
    * Update only the requested settings.
    */
-  const updateSettings = (updates: Partial<ControlSettings>) => {
-    const changesInitialConditions =
-      updates.initialAngle1 !== undefined ||
-      updates.initialAngle2 !== undefined;
-
-    setSettings((current) => ({
-      ...current,
+  const updateSettings = (updates: Partial<ControlSettings>): void => {
+    const nextSettings: ControlSettings = {
+      ...settings,
       ...updates,
-    }));
+    };
+
+    setSettings(nextSettings);
 
     /*
-     * Changing an initial condition means "restart from here".
-     *
-     * Other physics parameters remain live.
+     * Manual changes modify the current URL without creating a new
+     * browser-history entry for every slider movement.
      */
-    if (changesInitialConditions) {
+    setSettingsInUrl(nextSettings, DEFAULT_SETTINGS, "replace");
+
+    /*
+     * Initial conditions represent a new starting state.
+     */
+    if (
+      updates.initialAngle1 !== undefined ||
+      updates.initialAngle2 !== undefined
+    ) {
       setResetVersion((version) => version + 1);
     }
   };
@@ -103,19 +106,25 @@ function App() {
     }
   };
 
-  const handleRandomise = () => {
+  const handleRandomise = (): void => {
     const seed = createSeed();
 
-    setSettings((current) => createRandomConfig(seed, current));
+    const nextSettings = createRandomConfig(seed, settings);
 
-    setSeedInUrl(seed);
+    setSettings(nextSettings);
+
+    /*
+     * Randomisation is a meaningful navigation event, so push it into
+     * browser history rather than replacing the current entry.
+     */
+    setSettingsInUrl(nextSettings, DEFAULT_SETTINGS, "push");
 
     setResetVersion((version) => version + 1);
   };
 
   const handleCopyLink = async (): Promise<void> => {
     try {
-      const url = getShareUrl(settings.seed);
+      const url = getShareUrl(settings, DEFAULT_SETTINGS);
 
       await navigator.clipboard.writeText(url);
     } catch (error) {
@@ -209,7 +218,7 @@ function App() {
 
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [controlsOpen, revealUi]);
+  }, [controlsOpen, revealUi, handleRandomise]);
 
   useEffect(() => {
     return () => {
