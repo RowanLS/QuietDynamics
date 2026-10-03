@@ -18,9 +18,7 @@ export interface ControlSettings {
 
 interface ControlPanelProps {
   settings: ControlSettings;
-  onChange: (
-    updates: Partial<ControlSettings>,
-  ) => void;
+  onChange: (updates: Partial<ControlSettings>) => void;
   onRandomise?: () => void;
   onReset?: () => void;
 }
@@ -46,46 +44,35 @@ export function ControlPanel({
         <label className="control">
           <span>Background</span>
 
-          <input
-            type="color"
-            defaultValue="#071018"
-          />
+          <input type="color" defaultValue="#071018" />
         </label>
 
         <label className="control">
           <span>Palette</span>
 
           <select defaultValue="neon-rainbow">
-            <option value="neon-rainbow">
-              Neon Rainbow
-            </option>
+            <option value="neon-rainbow">Neon Rainbow</option>
 
-            <option value="rainbow">
-              Rainbow
-            </option>
+            <option value="rainbow">Rainbow</option>
 
-            <option value="gradient">
-              Gradient
-            </option>
+            <option value="gradient">Gradient</option>
 
-            <option value="solid">
-              Solid
-            </option>
+            <option value="solid">Solid</option>
           </select>
         </label>
 
         <Slider
-            label="Glow"
-            min="0"
-            max="200"
-            step="1"
-            value={String(settings.glow)}
-            output={`${Math.round(settings.glow)}%`}
-            onChange={(value) =>
-                onChange({
-                glow: value,
-                })
-            }
+          label="Glow"
+          min="0"
+          max="200"
+          step="1"
+          value={String(settings.glow)}
+          output={`${Math.round(settings.glow)}%`}
+          onChange={(value) =>
+            onChange({
+              glow: value,
+            })
+          }
         />
 
         <Slider
@@ -93,9 +80,7 @@ export function ControlPanel({
           min="2"
           max="40"
           step="1"
-          value={String(
-            settings.trailLifetime,
-          )}
+          value={String(settings.trailLifetime)}
           output={`${settings.trailLifetime} s`}
           onChange={(value) =>
             onChange({
@@ -109,12 +94,8 @@ export function ControlPanel({
           min="0"
           max="3"
           step="0.1"
-          value={String(
-            settings.rainbowSpeed,
-          )}
-          output={settings.rainbowSpeed.toFixed(
-            1,
-          )}
+          value={String(settings.rainbowSpeed)}
+          output={settings.rainbowSpeed.toFixed(1)}
           onChange={(value) =>
             onChange({
               rainbowSpeed: value,
@@ -127,65 +108,54 @@ export function ControlPanel({
         <h2>Physics</h2>
 
         <Slider
-        label="Mass 1"
-        min="0.2"
-        max="3"
-        step="0.01"
-        value={String(settings.m1)}
-        output={settings.m1.toFixed(2)}
-        onChange={(value) =>
-            onChange({ m1: value })
-        }
+          label="Mass 1"
+          min="0.2"
+          max="3"
+          step="0.01"
+          value={String(settings.m1)}
+          output={settings.m1.toFixed(2)}
+          onChange={(value) => onChange({ m1: value })}
         />
 
         <Slider
-        label="Mass 2"
-        min="0.2"
-        max="3"
-        step="0.01"
-        value={String(settings.m2)}
-        output={settings.m2.toFixed(2)}
-        onChange={(value) =>
-            onChange({ m2: value })
-        }
+          label="Mass 2"
+          min="0.2"
+          max="3"
+          step="0.01"
+          value={String(settings.m2)}
+          output={settings.m2.toFixed(2)}
+          onChange={(value) => onChange({ m2: value })}
         />
 
         <Slider
-        label="Length 1"
-        min="0.4"
-        max="2.2"
-        step="0.01"
-        value={String(settings.l1)}
-        output={settings.l1.toFixed(2)}
-        onChange={(value) =>
-            onChange({ l1: value })
-        }
+          label="Length 1"
+          min="0.4"
+          max="2.2"
+          step="0.01"
+          value={String(settings.l1)}
+          output={settings.l1.toFixed(2)}
+          onChange={(value) => onChange({ l1: value })}
         />
 
         <Slider
-        label="Length 2"
-        min="0.4"
-        max="2.2"
-        step="0.01"
-        value={String(settings.l2)}
-        output={settings.l2.toFixed(2)}
-        onChange={(value) =>
-            onChange({ l2: value })
-        }
+          label="Length 2"
+          min="0.4"
+          max="2.2"
+          step="0.01"
+          value={String(settings.l2)}
+          output={settings.l2.toFixed(2)}
+          onChange={(value) => onChange({ l2: value })}
         />
 
         <Slider
-        label="Gravity"
-        min="1"
-        max="20"
-        step="0.01"
-        value={String(settings.gravity)}
-        output={`${settings.gravity.toFixed(2)} m/s²`}
-        onChange={(value) =>
-            onChange({ gravity: value })
-        }
+          label="Gravity"
+          min="1"
+          max="20"
+          step="0.01"
+          value={String(settings.gravity)}
+          output={`${settings.gravity.toFixed(2)} m/s²`}
+          onChange={(value) => onChange({ gravity: value })}
         />
-
       </section>
 
       <section className="control-section">
@@ -196,12 +166,8 @@ export function ControlPanel({
           min="0.1"
           max="2.5"
           step="0.01"
-          value={String(
-            settings.simulationSpeed,
-          )}
-          output={`${settings.simulationSpeed.toFixed(
-            2,
-          )}×`}
+          value={String(settings.simulationSpeed)}
+          output={`${settings.simulationSpeed.toFixed(2)}×`}
           onChange={(value) =>
             onChange({
               simulationSpeed: value,
@@ -210,31 +176,31 @@ export function ControlPanel({
         />
 
         <Slider
-        label="Initial angle 1"
-        min={String(-Math.PI)}
-        max={String(Math.PI)}
-        step="0.01"
-        value={String(settings.initialAngle1)}
-        output={`${settings.initialAngle1.toFixed(2)} rad`}
-        onChange={(value) =>
+          label="Initial angle 1"
+          min={String(-Math.PI)}
+          max={String(Math.PI)}
+          step="0.01"
+          value={String(settings.initialAngle1)}
+          output={`${settings.initialAngle1.toFixed(2)} rad`}
+          onChange={(value) =>
             onChange({
-            initialAngle1: value,
+              initialAngle1: value,
             })
-        }
+          }
         />
 
         <Slider
-        label="Initial angle 2"
-        min={String(-Math.PI)}
-        max={String(Math.PI)}
-        step="0.01"
-        value={String(settings.initialAngle2)}
-        output={`${settings.initialAngle2.toFixed(2)} rad`}
-        onChange={(value) =>
+          label="Initial angle 2"
+          min={String(-Math.PI)}
+          max={String(Math.PI)}
+          step="0.01"
+          value={String(settings.initialAngle2)}
+          output={`${settings.initialAngle2.toFixed(2)} rad`}
+          onChange={(value) =>
             onChange({
-            initialAngle2: value,
+              initialAngle2: value,
             })
-        }
+          }
         />
       </section>
 
@@ -247,11 +213,7 @@ export function ControlPanel({
           Randomise
         </button>
 
-        <button
-          type="button"
-          className="control-button"
-          onClick={onReset}
-        >
+        <button type="button" className="control-button" onClick={onReset}>
           Reset
         </button>
       </div>
@@ -295,12 +257,9 @@ function Slider({
         step={step}
         value={value}
         onChange={(event) => {
-          const nextValue =
-            Number(event.target.value);
+          const nextValue = Number(event.target.value);
 
-          if (
-            Number.isFinite(nextValue)
-          ) {
+          if (Number.isFinite(nextValue)) {
             onChange(nextValue);
           }
         }}
@@ -309,5 +268,3 @@ function Slider({
     </label>
   );
 }
-
-
