@@ -1,29 +1,7 @@
 import "./ControlPanel.css";
+import type { ControlSettings, PaletteName } from "../types/settings";
 
-export type PaletteName = "neon-rainbow" | "rainbow" | "gradient" | "solid";
-
-export type BackgroundColour = string;
-
-export interface ControlSettings {
-  background: BackgroundColour;
-  palette: PaletteName;
-
-  trailLifetime: number;
-  glow: number;
-  rainbowSpeed: number;
-  simulationSpeed: number;
-
-  m1: number;
-  m2: number;
-  l1: number;
-  l2: number;
-  gravity: number;
-
-  initialAngle1: number;
-  initialAngle2: number;
-
-  paused: boolean;
-}
+export type { ControlSettings, PaletteName } from "../types/settings";
 
 interface ControlPanelProps {
   settings: ControlSettings;
