@@ -166,6 +166,8 @@ export function SimulationCanvas({
 
   const randomiseVersionRef = useRef(randomiseVersion);
 
+  const wasPausedRef = useRef(false);
+
   useEffect(() => {
     settingsRef.current = settings;
     resetVersionRef.current = resetVersion;
@@ -876,7 +878,32 @@ export function SimulationCanvas({
 
         randomise();
       }
+      /*
+       * When paused, leave the current Canvas contents untouched.
+       *
+       * Continue the requestAnimationFrame loop so that resuming does
+       * not require a separate animation-loop lifecycle and there is
+       * essentially no work beyond this check.
+       */
+      if (currentSettings.paused) {
+        wasPausedRef.current = true;
 
+        animationFrame = requestAnimationFrame(frame);
+
+        return;
+      }
+
+      if (wasPausedRef.current) {
+        /*
+         * Discard time spent paused so the simulation resumes smoothly
+         * rather than trying to catch up.
+         */
+        wasPausedRef.current = false;
+
+        previousTime = time;
+        accumulator = 0;
+        trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
+      }
       accumulator += elapsed * currentSettings.simulationSpeed;
 
       /*
@@ -977,17 +1004,6 @@ export function SimulationCanvas({
     };
 
     const handleKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target as HTMLElement | null;
-
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "BUTTON")
-      ) {
-        return;
-      }
-
       if (event.key.toLowerCase() === "r") {
         randomise();
       }
