@@ -1,6 +1,13 @@
 import "./ControlPanel.css";
 
+export type PaletteName = "neon-rainbow" | "rainbow" | "gradient" | "solid";
+
+export type BackgroundColour = string;
+
 export interface ControlSettings {
+  background: BackgroundColour;
+  palette: PaletteName;
+
   trailLifetime: number;
   glow: number;
   rainbowSpeed: number;
@@ -48,13 +55,29 @@ export function ControlPanel({
         <label className="control">
           <span>Background</span>
 
-          <input type="color" defaultValue="#071018" />
+          <input
+            type="color"
+            value={settings.background}
+            onChange={(event) =>
+              onChange({
+                background: event.target.value,
+              })
+            }
+            aria-label="Background colour"
+          />
         </label>
 
         <label className="control">
           <span>Palette</span>
 
-          <select defaultValue="neon-rainbow">
+          <select
+            value={settings.palette}
+            onChange={(event) =>
+              onChange({
+                palette: event.target.value as PaletteName,
+              })
+            }
+          >
             <option value="neon-rainbow">Neon Rainbow</option>
 
             <option value="rainbow">Rainbow</option>
