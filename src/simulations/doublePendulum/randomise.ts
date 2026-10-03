@@ -76,6 +76,8 @@ export function createRandomConfig(
      * simulation speed because those describe the user's preferred
      * viewing experience rather than the mathematical configuration.
      */
+    seed: seed,
+
     background: baseSettings.background,
 
     trailLifetime: baseSettings.trailLifetime,

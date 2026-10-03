@@ -5,15 +5,18 @@ import { SimulationCanvas } from "./components/SimulationCanvas";
 import { ControlPanel } from "./components/ControlPanel";
 
 import {
-  createSeed,
   createRandomConfig,
+  createSeed,
 } from "./simulations/doublePendulum/randomise";
+
+import { getSeedFromUrl, getShareUrl, setSeedInUrl } from "./utils/urlState";
 
 import type { ControlSettings } from "./types/settings";
 
 import "./App.css";
 
 const DEFAULT_SETTINGS: ControlSettings = {
+  seed: 42,
   background: "#071018",
   palette: "neon-rainbow",
   startingHue: 200,
@@ -39,7 +42,15 @@ const DEFAULT_SETTINGS: ControlSettings = {
 const UI_HIDE_DELAY = 4000;
 
 function App() {
-  const [settings, setSettings] = useState<ControlSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ControlSettings>(() => {
+    const urlSeed = getSeedFromUrl();
+
+    if (urlSeed === null) {
+      return DEFAULT_SETTINGS;
+    }
+
+    return createRandomConfig(urlSeed, DEFAULT_SETTINGS);
+  });
 
   const [controlsOpen, setControlsOpen] = useState(false);
 
@@ -97,7 +108,19 @@ function App() {
 
     setSettings((current) => createRandomConfig(seed, current));
 
+    setSeedInUrl(seed);
+
     setResetVersion((version) => version + 1);
+  };
+
+  const handleCopyLink = async (): Promise<void> => {
+    try {
+      const url = getShareUrl(settings.seed);
+
+      await navigator.clipboard.writeText(url);
+    } catch (error) {
+      console.error("Unable to copy share URL.", error);
+    }
   };
 
   const revealUi = useCallback(() => {
@@ -257,6 +280,7 @@ function App() {
               }}
               onRandomise={handleRandomise}
               onFullscreen={handleFullscreen}
+              onCopyLink={handleCopyLink}
             />
           </div>
         </>

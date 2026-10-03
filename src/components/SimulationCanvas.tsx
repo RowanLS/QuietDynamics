@@ -1,11 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ControlSettings } from "../types/settings";
 
-import {
-  mulberry32,
-  createSeed,
-} from "../simulations/doublePendulum/randomise";
-
 /**
  * One recorded point of the second bob's trajectory.
  */
@@ -182,8 +177,6 @@ export function SimulationCanvas({
     let omega1 = 0;
     let omega2 = 0;
 
-    const random = mulberry32(createSeed());
-
     /*
      * --------------------------------------------------------------
      * Trail configuration
@@ -205,7 +198,7 @@ export function SimulationCanvas({
 
     let trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
 
-    let hue = random() * 360;
+    let hue = settingsRef.current.startingHue;
 
     let trailSequence = 0;
     /*

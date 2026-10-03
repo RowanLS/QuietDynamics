@@ -9,6 +9,7 @@ export type PaletteName = "neon-rainbow" | "rainbow" | "gradient" | "solid";
  * These are configuration values, not the current dynamic simulation state.
  */
 export interface ControlSettings {
+  seed: number;
   /*
    * Appearance
    */
