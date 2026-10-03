@@ -9,6 +9,9 @@ import type { ControlSettings } from "./components/ControlPanel";
 import "./App.css";
 
 const DEFAULT_SETTINGS: ControlSettings = {
+  background: "#071018",
+  palette: "neon-rainbow",
+
   trailLifetime: 12,
   glow: 100,
   rainbowSpeed: 0.8,
@@ -168,7 +171,12 @@ function App() {
   }, [clearHideTimer]);
 
   return (
-    <main className="app">
+    <main
+      className="app"
+      style={{
+        backgroundColor: settings.background,
+      }}
+    >
       <SimulationCanvas
         settings={settings}
         resetVersion={resetVersion}

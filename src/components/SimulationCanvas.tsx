@@ -573,6 +573,7 @@ export function SimulationCanvas({
 
     const drawTrail = (now: number): void => {
       const currentSettings = settingsRef.current;
+      const palette = currentSettings.palette;
 
       const trailLifetimeMs = Math.max(1, currentSettings.trailLifetime * 1000);
 
@@ -588,7 +589,10 @@ export function SimulationCanvas({
 
       const glowAmount = clamp(currentSettings.glow / 200, 0, 1);
 
-      const glowStrength = Math.pow(glowAmount, 0.8);
+      const glowStrength =
+        palette == "rainbow"
+          ? Math.pow(glowAmount, 0.8) * 0.25
+          : Math.pow(glowAmount, 0.8);
 
       const inverseLifetime = 1 / trailLifetimeMs;
 
@@ -669,6 +673,13 @@ export function SimulationCanvas({
 
         const widthFactor = getWidthFactor(midpoint.time);
 
+        const glowHue =
+          palette === "solid"
+            ? 195
+            : palette === "gradient"
+              ? 240
+              : midpoint.hue;
+
         if (brightness > 0 && widthFactor > 0 && glowStrength > 0) {
           const broadWidth = Math.max(
             1.5,
@@ -687,7 +698,7 @@ export function SimulationCanvas({
           /*
            * Broad atmospheric layer.
            */
-          trailContext.strokeStyle = `hsla(${midpoint.hue} 100% 60% / ${broadOpacity})`;
+          trailContext.strokeStyle = `hsla(${glowHue} 100% 60% / ${broadOpacity})`;
 
           trailContext.lineWidth = broadWidth;
 
@@ -706,7 +717,7 @@ export function SimulationCanvas({
           /*
            * Inner halo.
            */
-          trailContext.strokeStyle = `hsla(${midpoint.hue} 100% 68% / ${innerOpacity})`;
+          trailContext.strokeStyle = `hsla(${glowHue} 100% 68% / ${innerOpacity})`;
 
           trailContext.lineWidth = innerWidth;
 
@@ -776,10 +787,41 @@ export function SimulationCanvas({
 
           const brightness = getBrightness(point.time);
 
-          gradient.addColorStop(
-            clamp(localPosition, 0, 1),
-            `hsla(${point.hue} 100% 72% / ${0.82 * brightness})`,
-          );
+          let colour: string;
+
+          switch (palette) {
+            case "neon-rainbow":
+              colour = `hsla(${point.hue} 100% 72% / ${0.82 * brightness})`;
+              break;
+
+            case "rainbow":
+              colour = `hsla(${point.hue} 85% 58% / ${0.9 * brightness})`;
+              break;
+
+            case "gradient": {
+              const startHue = 195;
+              const endHue = 285;
+
+              const gradientHue =
+                startHue + (endHue - startHue) * localPosition;
+
+              colour = `hsla(${gradientHue} 100% 72% / ${0.82 * brightness})`;
+
+              break;
+            }
+
+            case "solid":
+              colour = `hsla(195 100% 72% / ${0.82 * brightness})`;
+              break;
+
+            default: {
+              const exhaustiveCheck: never = palette;
+
+              throw new Error(`Unsupported palette: ${exhaustiveCheck}`);
+            }
+          }
+
+          gradient.addColorStop(clamp(localPosition, 0, 1), colour);
         }
 
         trailContext.strokeStyle = gradient;
