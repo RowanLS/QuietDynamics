@@ -1,20 +1,10 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
-import {
-  SimulationCanvas,
-} from "./components/SimulationCanvas";
+import { SimulationCanvas } from "./components/SimulationCanvas";
 
-import {
-  ControlPanel,
-} from "./components/ControlPanel";
+import { ControlPanel } from "./components/ControlPanel";
 
-import type {
-  ControlSettings,
-} from "./components/ControlPanel";
+import type { ControlSettings } from "./components/ControlPanel";
 
 import "./App.css";
 
@@ -35,45 +25,26 @@ const DEFAULT_SETTINGS: ControlSettings = {
 
 const UI_HIDE_DELAY = 4000;
 
-
 function App() {
-  const [
-    settings,
-    setSettings,
-  ] = useState<ControlSettings>(
-    DEFAULT_SETTINGS,
-  );
+  const [settings, setSettings] = useState<ControlSettings>(DEFAULT_SETTINGS);
 
-  const [
-    controlsOpen,
-    setControlsOpen,
-  ] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
 
-  const [
-    uiVisible,
-    setUiVisible,
-  ] = useState(true);
+  const [uiVisible, setUiVisible] = useState(true);
 
-  const [resetVersion, setResetVersion] =
-    useState(0);
+  const [resetVersion, setResetVersion] = useState(0);
 
-  const [randomiseVersion, setRandomiseVersion] =
-    useState(0);
+  const [randomiseVersion, setRandomiseVersion] = useState(0);
 
-  const hideTimerRef =
-    useRef<number | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
 
   /**
    * Update only the requested settings.
    */
-  const updateSettings = (
-    updates: Partial<ControlSettings>,
-  ) => {
+  const updateSettings = (updates: Partial<ControlSettings>) => {
     const changesInitialConditions =
-      updates.initialAngle1 !==
-        undefined ||
-      updates.initialAngle2 !==
-        undefined;
+      updates.initialAngle1 !== undefined ||
+      updates.initialAngle2 !== undefined;
 
     setSettings((current) => ({
       ...current,
@@ -81,25 +52,18 @@ function App() {
     }));
 
     if (changesInitialConditions) {
-      setResetVersion(
-        (version) => version + 1,
-      );
+      setResetVersion((version) => version + 1);
     }
   };
 
-  const clearHideTimer = () => {
-    if (
-      hideTimerRef.current !== null
-    ) {
-      window.clearTimeout(
-        hideTimerRef.current,
-      );
-
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const revealUi = () => {
+  const revealUi = useCallback(() => {
     setUiVisible(true);
     clearHideTimer();
 
@@ -107,83 +71,60 @@ function App() {
       return;
     }
 
-    hideTimerRef.current =
-      window.setTimeout(() => {
-        setUiVisible(false);
-        hideTimerRef.current = null;
-      }, UI_HIDE_DELAY);
-  };
+    hideTimerRef.current = window.setTimeout(() => {
+      setUiVisible(false);
+      hideTimerRef.current = null;
+    }, UI_HIDE_DELAY);
+  }, [clearHideTimer, controlsOpen]);
 
   useEffect(() => {
+    clearHideTimer();
+
     if (controlsOpen) {
-      clearHideTimer();
-      setUiVisible(true);
       return;
     }
 
-    revealUi();
+    hideTimerRef.current = window.setTimeout(() => {
+      setUiVisible(false);
+      hideTimerRef.current = null;
+    }, UI_HIDE_DELAY);
 
     return clearHideTimer;
-  }, [controlsOpen]);
+  }, [controlsOpen, clearHideTimer]);
 
   useEffect(() => {
     const handleActivity = () => {
       revealUi();
     };
 
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       revealUi();
 
-      if (
-        event.key === "Escape" &&
-        controlsOpen
-      ) {
+      if (event.key === "Escape" && controlsOpen) {
         setControlsOpen(false);
       }
     };
 
-    window.addEventListener(
-      "pointermove",
-      handleActivity,
-      { passive: true },
-    );
+    window.addEventListener("pointermove", handleActivity, { passive: true });
 
-    window.addEventListener(
-      "pointerdown",
-      handleActivity,
-      { passive: true },
-    );
+    window.addEventListener("pointerdown", handleActivity, { passive: true });
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "pointermove",
-        handleActivity,
-      );
+      window.removeEventListener("pointermove", handleActivity);
 
-      window.removeEventListener(
-        "pointerdown",
-        handleActivity,
-      );
+      window.removeEventListener("pointerdown", handleActivity);
 
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [controlsOpen]);
+  }, [controlsOpen, revealUi]);
 
   useEffect(() => {
     return () => {
       clearHideTimer();
     };
-  }, []);
+  }, [clearHideTimer]);
 
   return (
     <main className="app">
@@ -195,35 +136,22 @@ function App() {
 
       <div
         className={`ui-layer ${
-          uiVisible ||
-          controlsOpen
-            ? "ui-visible"
-            : "ui-hidden"
+          uiVisible || controlsOpen ? "ui-visible" : "ui-hidden"
         }`}
       >
         <div className="overlay">
-          <h1>
-            Quiet Dynamics
-          </h1>
-          <h6>
-            Mathematical motion, endlessly unfolding
-          </h6>
-          <p>
-            Double Pendulum
-          </p>
+          <h1>Quiet Dynamics</h1>
+          <h6>Mathematical motion, endlessly unfolding</h6>
+          <p>Double Pendulum</p>
         </div>
 
         <button
           type="button"
           className="controls-toggle"
-          aria-expanded={
-            controlsOpen
-          }
+          aria-expanded={controlsOpen}
           aria-controls="control-panel"
           onClick={() => {
-            setControlsOpen(
-              (open) => !open,
-            );
+            setControlsOpen((open) => !open);
           }}
         >
           Controls
@@ -236,27 +164,18 @@ function App() {
             type="button"
             className="controls-backdrop"
             aria-label="Close controls"
-            onClick={() =>
-              setControlsOpen(false)
-            }
+            onClick={() => setControlsOpen(false)}
           />
 
-          <div
-            id="control-panel"
-            className="controls-wrapper"
-          >
+          <div id="control-panel" className="controls-wrapper">
             <ControlPanel
               settings={settings}
               onChange={updateSettings}
               onReset={() => {
-                setResetVersion(
-                  (version) => version + 1,
-                );
+                setResetVersion((version) => version + 1);
               }}
               onRandomise={() => {
-                setRandomiseVersion(
-                  (version) => version + 1,
-                );
+                setRandomiseVersion((version) => version + 1);
               }}
             />
           </div>
