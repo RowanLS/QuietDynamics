@@ -17,8 +17,13 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": "eslint --fix",
-    "*.{ts,tsx,js,jsx,css,json,md}": "prettier --write"
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json,jsonc,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "react": "^19.2.8",
