@@ -106,7 +106,7 @@ function App() {
     }
   };
 
-  const handleRandomise = (): void => {
+  const handleRandomise = useCallback((): void => {
     const seed = createSeed();
 
     const nextSettings = createRandomConfig(seed, settings);
@@ -120,7 +120,7 @@ function App() {
     setSettingsInUrl(nextSettings, DEFAULT_SETTINGS, "push");
 
     setResetVersion((version) => version + 1);
-  };
+  }, [settings]);
 
   const handleCopyLink = async (): Promise<void> => {
     try {
