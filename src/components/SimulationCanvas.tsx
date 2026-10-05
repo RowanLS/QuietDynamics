@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
-import type { ControlSettings } from "../types/settings";
 import { createCanvasViewport } from "../engine/CanvasViewport";
 import { renderTrail } from "../engine/trailRenderer";
-import { createDoublePendulumSimulation } from "../simulations/doublePendulum/DoublePendulumSimulation";
+import type {
+  Simulation,
+  SimulationRuntimeSettings,
+} from "../types/simulation";
 
 /**
  * Animated double-pendulum canvas.
@@ -12,28 +14,33 @@ import { createDoublePendulumSimulation } from "../simulations/doublePendulum/Do
  * re-renders.
  */
 interface SimulationCanvasProps {
-  settings: ControlSettings;
+  runtimeSettings: SimulationRuntimeSettings;
   resetVersion: number;
+
+  createSimulation: (
+    getRuntimeSettings: () => SimulationRuntimeSettings,
+  ) => Simulation;
 }
 
 export function SimulationCanvas({
-  settings,
+  runtimeSettings,
   resetVersion,
+  createSimulation,
 }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const trailCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const settingsRef = useRef(settings);
+  const runtimeSettingsRef = useRef(runtimeSettings);
 
   const resetVersionRef = useRef(resetVersion);
 
   const wasPausedRef = useRef(false);
 
   useEffect(() => {
-    settingsRef.current = settings;
+    runtimeSettingsRef.current = runtimeSettings;
     resetVersionRef.current = resetVersion;
-  }, [settings, resetVersion]);
+  }, [runtimeSettings, resetVersion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,9 +63,10 @@ export function SimulationCanvas({
       return;
     }
 
-    const simulation = createDoublePendulumSimulation(
-      () => settingsRef.current,
-    );
+    const getRuntimeSettings = (): SimulationRuntimeSettings =>
+      runtimeSettingsRef.current;
+
+    const simulation = createSimulation(getRuntimeSettings);
 
     /*
      * --------------------------------------------------------------
@@ -113,7 +121,7 @@ export function SimulationCanvas({
       const elapsed = Math.max(0, Math.min((time - previousTime) / 1000, 0.1));
       previousTime = time;
 
-      const currentSettings = settingsRef.current;
+      const currentRuntimeSettings = runtimeSettingsRef.current;
 
       if (resetVersionRef.current !== handledResetVersion) {
         handledResetVersion = resetVersionRef.current;
@@ -122,7 +130,7 @@ export function SimulationCanvas({
         clearTrailCanvas();
       }
 
-      if (currentSettings.paused) {
+      if (currentRuntimeSettings.paused) {
         wasPausedRef.current = true;
 
         animationFrame = requestAnimationFrame(frame);
@@ -144,9 +152,9 @@ export function SimulationCanvas({
         trail: simulation.getTrail(),
         now: time,
         settings: {
-          palette: currentSettings.palette,
-          trailLifetime: currentSettings.trailLifetime,
-          glow: currentSettings.glow,
+          palette: currentRuntimeSettings.palette,
+          trailLifetime: currentRuntimeSettings.trailLifetime,
+          glow: currentRuntimeSettings.glow,
           width: viewportController.viewport.width,
           height: viewportController.viewport.height,
         },
@@ -191,7 +199,7 @@ export function SimulationCanvas({
       viewportController.destroy();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [createSimulation]);
 
   return (
     <div className="canvas-container">
