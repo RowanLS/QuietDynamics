@@ -5,6 +5,10 @@ import {
   type DoublePendulumState,
 } from "./physics";
 import type { ControlSettings } from "../../types/settings";
+import type {
+  Simulation,
+  SimulationRuntimeSettings,
+} from "../../types/simulation";
 
 export interface DoublePendulumPosition {
   x0: number;
@@ -13,39 +17,6 @@ export interface DoublePendulumPosition {
   y1: number;
   x2: number;
   y2: number;
-}
-
-export interface DoublePendulumSimulation {
-  /**
-   * Reset the simulation to the current initial conditions.
-   *
-   * The Canvas host remains responsible for clearing the displayed
-   * trail/foreground canvases.
-   */
-  reset(): void;
-  resetTiming(): void;
-  /**
-   * Advance the mathematical simulation by the supplied wall-clock
-   * elapsed time.
-   *
-   * The simulation applies simulationSpeed internally and performs a
-   * bounded number of fixed-size RK4 steps.
-   */
-  update(elapsed: number, time: number, width: number, height: number): void;
-
-  /**
-   * Render the current double-pendulum geometry.
-   */
-  renderForeground(
-    context: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ): void;
-
-  /**
-   * Return the reusable trail buffer owned by this simulation.
-   */
-  getTrail(): TrailBuffer;
 }
 
 const TRAIL_SAMPLE_RATE = 120;
@@ -68,7 +39,8 @@ const MAX_ELAPSED_SECONDS = 0.1;
  */
 export function createDoublePendulumSimulation(
   getSettings: () => ControlSettings,
-): DoublePendulumSimulation {
+  getRuntimeSettings: () => SimulationRuntimeSettings,
+): Simulation {
   let accumulator = 0;
   let trailSampleAccumulator = TRAIL_SAMPLE_INTERVAL;
 
@@ -161,9 +133,10 @@ export function createDoublePendulumSimulation(
     }
 
     const settings = getSettings();
+    const runtime = getRuntimeSettings();
 
     accumulator +=
-      Math.min(elapsed, MAX_ELAPSED_SECONDS) * settings.simulationSpeed;
+      Math.min(elapsed, MAX_ELAPSED_SECONDS) * runtime.simulationSpeed;
 
     const maxAccumulatedTime = TIMESTEP * MAX_SIMULATION_STEPS_PER_FRAME;
 
@@ -229,7 +202,7 @@ export function createDoublePendulumSimulation(
      * Preserve the existing behaviour: hue advances once per rendered
      * frame rather than once per physics step.
      */
-    hue = (hue + 0.75 * settings.rainbowSpeed) % 360;
+    hue = (hue + 0.75 * runtime.rainbowSpeed) % 360;
   };
 
   const renderForeground = (

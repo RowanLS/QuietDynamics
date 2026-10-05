@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 import { SimulationCanvas } from "./components/SimulationCanvas";
-
+import type { SimulationRuntimeSettings } from "./types/simulation";
 import { ControlPanel } from "./components/ControlPanel";
-
 import {
   createRandomConfig,
   createSeed,
@@ -18,6 +17,10 @@ import {
 import type { ControlSettings } from "./types/settings";
 
 import "./App.css";
+
+//import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
+import { createLorenzSimulation } from "./simulations/lorenz/LorenzSimulation";
+import type { LorenzSettings } from "./simulations/lorenz/settings";
 
 const DEFAULT_SETTINGS: ControlSettings = {
   seed: 42,
@@ -43,6 +46,16 @@ const DEFAULT_SETTINGS: ControlSettings = {
   paused: false,
 };
 
+const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
+  sigma: 10,
+  rho: 28,
+  beta: 8 / 3,
+  initialX: 0.1,
+  initialY: 0,
+  initialZ: 0,
+  startingHue: 200,
+};
+
 const UI_HIDE_DELAY = 4000;
 
 function App() {
@@ -58,6 +71,28 @@ function App() {
 
   const hideTimerRef = useRef<number | null>(null);
 
+  const runtimeSettings: SimulationRuntimeSettings = {
+    simulationSpeed: settings.simulationSpeed,
+    rainbowSpeed: settings.rainbowSpeed,
+    palette: settings.palette,
+    trailLifetime: settings.trailLifetime,
+    glow: settings.glow,
+    paused: settings.paused,
+  };
+
+  const [lorenzSettings] = useState<LorenzSettings>(DEFAULT_LORENZ_SETTINGS);
+
+  const lorenzSettingsRef = useRef(lorenzSettings);
+
+  useEffect(() => {
+    lorenzSettingsRef.current = lorenzSettings;
+  }, [lorenzSettings]);
+
+  const createLorenz = useCallback(
+    (getRuntime: () => SimulationRuntimeSettings) =>
+      createLorenzSimulation(() => lorenzSettingsRef.current, getRuntime),
+    [],
+  );
   /**
    * Update only the requested settings.
    */
@@ -246,7 +281,11 @@ function App() {
         handleRandomise();
       }}
     >
-      <SimulationCanvas settings={settings} resetVersion={resetVersion} />
+      <SimulationCanvas
+        runtimeSettings={runtimeSettings}
+        resetVersion={resetVersion}
+        createSimulation={createLorenz}
+      />
 
       <div
         className={`ui-layer ${
@@ -256,7 +295,7 @@ function App() {
         <div className="overlay">
           <h1>Quiet Dynamics</h1>
           <h6>Mathematical motion, endlessly unfolding</h6>
-          <p>Double Pendulum</p>
+          <p>Lorenz Attractor</p>
         </div>
 
         <button
