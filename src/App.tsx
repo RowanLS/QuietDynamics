@@ -93,6 +93,7 @@ function App() {
       createLorenzSimulation(() => lorenzSettingsRef.current, getRuntime),
     [],
   );
+
   /**
    * Update only the requested settings.
    */
