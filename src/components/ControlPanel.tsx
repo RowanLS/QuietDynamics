@@ -2,6 +2,7 @@ import "./ControlPanel.css";
 import type { ControlSettings, PaletteName } from "../types/settings";
 import { DoublePendulumControls } from "./DoublePendulumControls";
 export type { ControlSettings, PaletteName } from "../types/settings";
+import { Slider } from "./Slider";
 
 interface ControlPanelProps {
   settings: ControlSettings;
@@ -167,53 +168,5 @@ export function ControlPanel({
         </button>
       </div>
     </aside>
-  );
-}
-
-interface SliderProps {
-  label: string;
-  min: string;
-  max: string;
-  step: string;
-  value: string;
-  output: string;
-  onChange: (value: number) => void;
-}
-
-/**
- * Controlled slider.
- */
-function Slider({
-  label,
-  min,
-  max,
-  step,
-  value,
-  output,
-  onChange,
-}: SliderProps) {
-  return (
-    <label className="control slider-control">
-      <span>
-        <span>{label}</span>
-        <output>{output}</output>
-      </span>
-
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => {
-          const nextValue = Number(event.target.value);
-
-          if (Number.isFinite(nextValue)) {
-            onChange(nextValue);
-          }
-        }}
-        aria-label={label}
-      />
-    </label>
   );
 }
