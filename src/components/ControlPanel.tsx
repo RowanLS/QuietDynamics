@@ -1,58 +1,78 @@
+import type { ReactNode } from "react";
+
 import "./ControlPanel.css";
-import type { ControlSettings, PaletteName } from "../types/settings";
-import { DoublePendulumControls } from "./DoublePendulumControls";
-export type { ControlSettings, PaletteName } from "../types/settings";
+import type {
+  PaletteName,
+  VisualSettings,
+  PlaybackSettings,
+} from "../types/settings";
 import { Slider } from "./Slider";
 
 interface ControlPanelProps {
-  settings: ControlSettings;
-  onChange: (updates: Partial<ControlSettings>) => void;
+  visualSettings: VisualSettings;
+  playbackSettings: PlaybackSettings;
+
+  onVisualChange: (updates: Partial<VisualSettings>) => void;
+  onPlaybackChange: (updates: Partial<PlaybackSettings>) => void;
+
   onRandomise?: () => void;
   onReset?: () => void;
   onFullscreen?: () => void;
   onCopyLink?: () => void;
+
+  seed?: number;
+
+  children?: ReactNode;
 }
 
 /**
  * Shared control-panel shell.
  *
- * Appearance, playback, and application actions are shared across
- * simulations. Simulation-specific controls are rendered separately.
+ * Appearance, playback, and application actions are shared between
+ * simulations. Simulation-specific controls are rendered through children.
  */
 export function ControlPanel({
-  settings,
-  onChange,
+  visualSettings,
+  playbackSettings,
+  onVisualChange,
+  onPlaybackChange,
   onRandomise,
   onReset,
   onFullscreen,
   onCopyLink,
+  seed,
+  children,
 }: ControlPanelProps) {
   return (
     <aside className="control-panel">
       <section className="control-section">
         <h2>Appearance</h2>
-        <div className="control seed-control">
-          <span>
-            <span>Seed</span>
-            <output>{settings.seed}</output>
-          </span>
 
-          <button
-            type="button"
-            className="control-button control-button-small"
-            onClick={onCopyLink}
-          >
-            Copy link
-          </button>
-        </div>
+        {seed !== undefined && (
+          <div className="control seed-control">
+            <span>
+              <span>Seed</span>
+              <output>{seed}</output>
+            </span>
+
+            <button
+              type="button"
+              className="control-button control-button-small"
+              onClick={onCopyLink}
+            >
+              Copy link
+            </button>
+          </div>
+        )}
+
         <label className="control">
           <span>Background</span>
 
           <input
             type="color"
-            value={settings.background}
+            value={visualSettings.background}
             onChange={(event) =>
-              onChange({
+              onVisualChange({
                 background: event.target.value,
               })
             }
@@ -64,19 +84,16 @@ export function ControlPanel({
           <span>Palette</span>
 
           <select
-            value={settings.palette}
+            value={visualSettings.palette}
             onChange={(event) =>
-              onChange({
+              onVisualChange({
                 palette: event.target.value as PaletteName,
               })
             }
           >
             <option value="neon-rainbow">Neon Rainbow</option>
-
             <option value="rainbow">Rainbow</option>
-
             <option value="gradient">Gradient</option>
-
             <option value="solid">Solid</option>
           </select>
         </label>
@@ -86,10 +103,10 @@ export function ControlPanel({
           min="0"
           max="200"
           step="1"
-          value={String(settings.glow)}
-          output={`${Math.round(settings.glow)}%`}
+          value={String(visualSettings.glow)}
+          output={`${Math.round(visualSettings.glow)}%`}
           onChange={(value) =>
-            onChange({
+            onVisualChange({
               glow: value,
             })
           }
@@ -100,10 +117,10 @@ export function ControlPanel({
           min="2"
           max="40"
           step="1"
-          value={String(settings.trailLifetime)}
-          output={`${settings.trailLifetime} s`}
+          value={String(visualSettings.trailLifetime)}
+          output={`${visualSettings.trailLifetime} s`}
           onChange={(value) =>
-            onChange({
+            onVisualChange({
               trailLifetime: value,
             })
           }
@@ -114,10 +131,10 @@ export function ControlPanel({
           min="0"
           max="3"
           step="0.1"
-          value={String(settings.rainbowSpeed)}
-          output={settings.rainbowSpeed.toFixed(1)}
+          value={String(visualSettings.rainbowSpeed)}
+          output={visualSettings.rainbowSpeed.toFixed(1)}
           onChange={(value) =>
-            onChange({
+            onVisualChange({
               rainbowSpeed: value,
             })
           }
@@ -132,27 +149,29 @@ export function ControlPanel({
           min="0.1"
           max="2.5"
           step="0.01"
-          value={String(settings.simulationSpeed)}
-          output={`${settings.simulationSpeed.toFixed(2)}×`}
+          value={String(playbackSettings.simulationSpeed)}
+          output={`${playbackSettings.simulationSpeed.toFixed(2)}×`}
           onChange={(value) =>
-            onChange({
+            onPlaybackChange({
               simulationSpeed: value,
             })
           }
         />
       </section>
-      <DoublePendulumControls settings={settings} onChange={onChange} />
+
+      {children}
+
       <div className="control-actions">
         <button
           type="button"
           className="control-button control-button-primary"
           onClick={() =>
-            onChange({
-              paused: !settings.paused,
+            onPlaybackChange({
+              paused: !playbackSettings.paused,
             })
           }
         >
-          {settings.paused ? "Resume" : "Pause"}
+          {playbackSettings.paused ? "Resume" : "Pause"}
         </button>
 
         <button type="button" className="control-button" onClick={onReset}>

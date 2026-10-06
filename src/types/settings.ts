@@ -44,3 +44,16 @@ export interface ControlSettings {
   initialOmega1: number;
   initialOmega2: number;
 }
+
+export interface VisualSettings {
+  background: string;
+  palette: PaletteName;
+  trailLifetime: number;
+  glow: number;
+  rainbowSpeed: number;
+}
+
+export interface PlaybackSettings {
+  simulationSpeed: number;
+  paused: boolean;
+}
