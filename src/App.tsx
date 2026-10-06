@@ -1,23 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 import { SimulationCanvas } from "./components/SimulationCanvas";
-import type { SimulationRuntimeSettings } from "./types/simulation";
 import { ControlPanel } from "./components/ControlPanel";
-import {
-  createRandomConfig,
-  createSeed,
-} from "./simulations/doublePendulum/randomise";
+import { createRandomConfig, createSeed } from "./simulations/lorenz/randomise";
 
-import {
-  getShareUrl,
-  loadSettingsFromUrl,
-  setSettingsInUrl,
-} from "./utils/urlState";
-
+import { loadSettingsFromUrl } from "./utils/urlState";
+import { LorenzControls } from "./components/LorenzControls";
 import type { ControlSettings } from "./types/settings";
 
 import "./App.css";
-
+import type { VisualSettings, PlaybackSettings } from "./types/settings";
+import type { SimulationRuntimeSettings } from "./types/simulation";
 //import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
 import { createLorenzSimulation } from "./simulations/lorenz/LorenzSimulation";
 import type { LorenzSettings } from "./simulations/lorenz/settings";
@@ -71,16 +64,22 @@ function App() {
 
   const hideTimerRef = useRef<number | null>(null);
 
-  const runtimeSettings: SimulationRuntimeSettings = {
-    simulationSpeed: settings.simulationSpeed,
-    rainbowSpeed: settings.rainbowSpeed,
+  const visualSettings: VisualSettings = {
+    background: settings.background,
     palette: settings.palette,
     trailLifetime: settings.trailLifetime,
     glow: settings.glow,
+    rainbowSpeed: settings.rainbowSpeed,
+  };
+
+  const playbackSettings: PlaybackSettings = {
+    simulationSpeed: settings.simulationSpeed,
     paused: settings.paused,
   };
 
-  const [lorenzSettings] = useState<LorenzSettings>(DEFAULT_LORENZ_SETTINGS);
+  const [lorenzSettings, setLorenzSettings] = useState<LorenzSettings>(
+    DEFAULT_LORENZ_SETTINGS,
+  );
 
   const lorenzSettingsRef = useRef(lorenzSettings);
 
@@ -93,29 +92,31 @@ function App() {
       createLorenzSimulation(() => lorenzSettingsRef.current, getRuntime),
     [],
   );
-  /**
-   * Update only the requested settings.
-   */
-  const updateSettings = (updates: Partial<ControlSettings>): void => {
-    const nextSettings: ControlSettings = {
-      ...settings,
+
+  const updateVisualSettings = (updates: Partial<VisualSettings>): void => {
+    setSettings((current) => ({
+      ...current,
       ...updates,
-    };
+    }));
+  };
 
-    setSettings(nextSettings);
+  const updatePlaybackSettings = (updates: Partial<PlaybackSettings>): void => {
+    setSettings((current) => ({
+      ...current,
+      ...updates,
+    }));
+  };
 
-    /*
-     * Manual changes modify the current URL without creating a new
-     * browser-history entry for every slider movement.
-     */
-    setSettingsInUrl(nextSettings, DEFAULT_SETTINGS, "replace");
+  const updateLorenzSettings = (updates: Partial<LorenzSettings>): void => {
+    setLorenzSettings((current) => ({
+      ...current,
+      ...updates,
+    }));
 
-    /*
-     * Initial conditions represent a new starting state.
-     */
     if (
-      updates.initialAngle1 !== undefined ||
-      updates.initialAngle2 !== undefined
+      updates.initialX !== undefined ||
+      updates.initialY !== undefined ||
+      updates.initialZ !== undefined
     ) {
       setResetVersion((version) => version + 1);
     }
@@ -143,29 +144,26 @@ function App() {
 
   const handleRandomise = useCallback((): void => {
     const seed = createSeed();
+    const nextLorenzSettings = createRandomConfig(seed);
 
-    const nextSettings = createRandomConfig(seed, settings);
-
-    setSettings(nextSettings);
+    setLorenzSettings(nextLorenzSettings);
 
     /*
-     * Randomisation is a meaningful navigation event, so push it into
-     * browser history rather than replacing the current entry.
+     * Keep the application seed in sync with the generated Lorenz
+     * configuration. The seed currently remains part of the existing
+     * application settings while simulation-specific URL state is being
+     * redesigned.
      */
-    setSettingsInUrl(nextSettings, DEFAULT_SETTINGS, "push");
+    setSettings((current) => ({
+      ...current,
+      seed,
+    }));
 
+    /*
+     * Randomisation represents a new simulation state.
+     */
     setResetVersion((version) => version + 1);
-  }, [settings]);
-
-  const handleCopyLink = async (): Promise<void> => {
-    try {
-      const url = getShareUrl(settings, DEFAULT_SETTINGS);
-
-      await navigator.clipboard.writeText(url);
-    } catch (error) {
-      console.error("Unable to copy share URL.", error);
-    }
-  };
+  }, []);
 
   const revealUi = useCallback(() => {
     setUiVisible(true);
@@ -282,7 +280,13 @@ function App() {
       }}
     >
       <SimulationCanvas
-        runtimeSettings={runtimeSettings}
+        runtimeSettings={{
+          ...playbackSettings,
+          rainbowSpeed: visualSettings.rainbowSpeed,
+          palette: visualSettings.palette,
+          trailLifetime: visualSettings.trailLifetime,
+          glow: visualSettings.glow,
+        }}
         resetVersion={resetVersion}
         createSimulation={createLorenz}
       />
@@ -321,15 +325,21 @@ function App() {
 
           <div id="control-panel" className="controls-wrapper">
             <ControlPanel
-              settings={settings}
-              onChange={updateSettings}
+              visualSettings={visualSettings}
+              playbackSettings={playbackSettings}
+              onVisualChange={updateVisualSettings}
+              onPlaybackChange={updatePlaybackSettings}
+              onRandomise={handleRandomise}
               onReset={() => {
                 setResetVersion((version) => version + 1);
               }}
-              onRandomise={handleRandomise}
               onFullscreen={handleFullscreen}
-              onCopyLink={handleCopyLink}
-            />
+            >
+              <LorenzControls
+                settings={lorenzSettings}
+                onChange={updateLorenzSettings}
+              />
+            </ControlPanel>
           </div>
         </>
       )}

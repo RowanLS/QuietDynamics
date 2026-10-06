@@ -1,5 +1,6 @@
 import type { TrailBuffer } from "../engine/TrailBuffer";
-
+import type { PlaybackSettings } from "./settings";
+import type { PaletteName } from "./settings";
 export interface Simulation {
   /**
    * Reset mathematical state and simulation-owned trail state.
@@ -37,11 +38,9 @@ export interface Simulation {
   getTrail(): TrailBuffer;
 }
 
-export interface SimulationRuntimeSettings {
-  simulationSpeed: number;
+export interface SimulationRuntimeSettings extends PlaybackSettings {
   rainbowSpeed: number;
-  palette: "neon-rainbow" | "rainbow" | "gradient" | "solid";
+  palette: PaletteName;
   trailLifetime: number;
   glow: number;
-  paused: boolean;
 }
