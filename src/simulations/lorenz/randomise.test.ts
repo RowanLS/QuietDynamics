@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   createRandomConfig,
-  createSeed,
   mulberry32,
   randomInRange,
   randomInt,
 } from "./randomise";
+import { createSeed } from "../../utils/seed";
 import type { LorenzSettings } from "./settings";
 
 const RANGES = {

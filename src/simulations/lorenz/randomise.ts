@@ -85,21 +85,3 @@ export function createRandomConfig(seed: number): LorenzSettings {
     startingHue: randomInt(rng, 0, 359),
   };
 }
-
-/**
- * Return a deterministic random seed suitable for a new configuration.
- *
- * The application can use this when randomising from user interaction.
- */
-export function createSeed(): number {
-  const cryptoObject = globalThis.crypto;
-
-  if (cryptoObject?.getRandomValues) {
-    const values = new Uint32Array(1);
-    cryptoObject.getRandomValues(values);
-
-    return values[0];
-  }
-
-  return Math.floor(Math.random() * 0x1_0000_0000);
-}

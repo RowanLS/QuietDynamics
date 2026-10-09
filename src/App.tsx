@@ -4,10 +4,8 @@ import { SimulationPage } from "./components/SimulationPage";
 import { DoublePendulumControls } from "./components/DoublePendulumControls";
 import { LorenzControls } from "./components/LorenzControls";
 
-import {
-  createRandomConfig as createDoublePendulumRandomConfig,
-  createSeed,
-} from "./simulations/doublePendulum/randomise";
+import { createRandomConfig as createDoublePendulumRandomConfig } from "./simulations/doublePendulum/randomise";
+import { createSeed } from "./utils/seed";
 import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
 import { createDoublePendulumUrlCodec } from "./simulations/doublePendulum/url";
 
