@@ -8,11 +8,11 @@ export interface SimulationDefinition {
   id: SimulationName;
   title: string;
   description: string;
-  path: string;
+  path: `/${string}`;
   preview: string;
 }
 
-export const SIMULATIONS: readonly SimulationDefinition[] = [
+export const SIMULATIONS = [
   {
     id: "double-pendulum",
     title: "Double Pendulum",
@@ -36,4 +36,20 @@ export const SIMULATIONS: readonly SimulationDefinition[] = [
     path: "/pendulum-wave",
     preview: pendulumWavePreview,
   },
-];
+] as const satisfies readonly SimulationDefinition[];
+
+export function getSimulationDefinition(
+  id: SimulationName,
+): SimulationDefinition {
+  const definition = SIMULATIONS.find((simulation) => simulation.id === id);
+
+  if (!definition) {
+    /*
+     * SimulationName and SIMULATIONS should remain exhaustive together.
+     * Keep the runtime guard as protection against future configuration errors.
+     */
+    throw new Error(`No simulation definition exists for "${id}".`);
+  }
+
+  return definition;
+}
