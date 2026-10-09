@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createLorenzUrlCodec } from "../simulations/lorenz/url";
-import { createRandomConfig } from "../simulations/lorenz/randomise";
+import { createRandomConfig as createDoublePendulumRandomConfig } from "../simulations/doublePendulum/randomise";
+import { createDoublePendulumUrlCodec } from "../simulations/doublePendulum/url";
+import { createRandomConfig as createLorenzRandomConfig } from "../simulations/lorenz/randomise";
 import type { LorenzSettings } from "../simulations/lorenz/settings";
+import { createLorenzUrlCodec } from "../simulations/lorenz/url";
+import type { ControlSettings } from "../types/settings";
 import {
   getSimulationShareUrl,
   loadSimulationFromUrl,
@@ -10,10 +13,6 @@ import {
   type SharedUrlDefaults,
   type SimulationUrlState,
 } from "./urlState";
-
-import { createDoublePendulumUrlCodec } from "../simulations/doublePendulum/url";
-import { createRandomConfig as createDoublePendulumRandomConfig } from "../simulations/doublePendulum/randomise";
-import type { ControlSettings } from "../types/settings";
 
 const DEFAULT_VISUAL_SETTINGS = {
   background: "#071018",
@@ -44,11 +43,11 @@ const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
 };
 
 const lorenzCodec = createLorenzUrlCodec(
-  createRandomConfig,
+  createLorenzRandomConfig,
   DEFAULT_LORENZ_SETTINGS,
 );
 
-function createState(
+function createLorenzState(
   overrides: Partial<SimulationUrlState<LorenzSettings>> = {},
 ): SimulationUrlState<LorenzSettings> {
   return {
@@ -65,8 +64,10 @@ function createState(
   };
 }
 
-function setUrlSearch(search: string): void {
-  window.history.replaceState({}, "", `/?${search}`);
+function setUrl(pathname: string, search = ""): void {
+  const suffix = search === "" ? "" : `?${search}`;
+
+  window.history.replaceState({}, "", `${pathname}${suffix}`);
 }
 
 function expectLorenzSettingsEqual(
@@ -86,7 +87,7 @@ function expectLorenzSettingsEqual(
 
 describe("Lorenz URL state", () => {
   beforeEach(() => {
-    window.history.replaceState({}, "", "/");
+    setUrl("/lorenz");
   });
 
   afterEach(() => {
@@ -108,31 +109,38 @@ describe("Lorenz URL state", () => {
       });
     });
 
-    it("loads the Lorenz simulation from the URL", () => {
-      setUrlSearch("simulation=lorenz");
-
+    it("uses the codec to identify the simulation", () => {
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
       expect(result.simulation).toBe("lorenz");
     });
 
-    it("uses a deterministic seed to reconstruct Lorenz settings", () => {
-      setUrlSearch("simulation=lorenz&seed=12345");
+    it("ignores a legacy simulation query parameter", () => {
+      setUrl("/lorenz", "simulation=double-pendulum&seed=12345");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
-      const expected = createRandomConfig(12345);
+      expect(result.simulation).toBe("lorenz");
+      expect(result.seed).toBe(12345);
+    });
+
+    it("uses a deterministic seed to reconstruct Lorenz settings", () => {
+      setUrl("/lorenz", "seed=12345");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      const expected = createLorenzRandomConfig(12345);
 
       expect(result.seed).toBe(12345);
       expectLorenzSettingsEqual(result.settings, expected);
     });
 
     it("applies explicit Lorenz overrides on top of the seeded configuration", () => {
-      setUrlSearch("simulation=lorenz&seed=12345&sigma=15&rho=30&initialX=2.5");
+      setUrl("/lorenz", "seed=12345&sigma=15&rho=30&initialX=2.5");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
-      const generated = createRandomConfig(12345);
+      const generated = createLorenzRandomConfig(12345);
 
       expect(result.settings.sigma).toBe(15);
       expect(result.settings.rho).toBe(30);
@@ -144,8 +152,9 @@ describe("Lorenz URL state", () => {
     });
 
     it("loads shared visual settings from the URL", () => {
-      setUrlSearch(
-        "simulation=lorenz&background=%23ffffff&palette=rainbow&glow=175&trailLifetime=25",
+      setUrl(
+        "/lorenz",
+        "background=%23ffffff&palette=rainbow&glow=175&trailLifetime=25",
       );
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
@@ -157,7 +166,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("loads shared playback settings from the URL", () => {
-      setUrlSearch("simulation=lorenz&simulationSpeed=1.75&rainbowSpeed=2.2");
+      setUrl("/lorenz", "simulationSpeed=1.75&rainbowSpeed=2.2");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -166,7 +175,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("does not restore paused state from the URL", () => {
-      setUrlSearch("simulation=lorenz&paused=true");
+      setUrl("/lorenz", "paused=true");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -174,17 +183,16 @@ describe("Lorenz URL state", () => {
     });
 
     it("ignores an invalid seed", () => {
-      setUrlSearch("simulation=lorenz&seed=not-a-seed");
+      setUrl("/lorenz", "seed=not-a-seed");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
       expect(result.seed).toBe(0);
-
       expectLorenzSettingsEqual(result.settings, DEFAULT_LORENZ_SETTINGS);
     });
 
     it("ignores an out-of-range seed", () => {
-      setUrlSearch("simulation=lorenz&seed=4294967296");
+      setUrl("/lorenz", "seed=4294967296");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -192,7 +200,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("ignores invalid Lorenz parameter values", () => {
-      setUrlSearch("simulation=lorenz&sigma=-1&rho=abc&beta=100&initialX=999");
+      setUrl("/lorenz", "sigma=-1&rho=abc&beta=100&initialX=999");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -203,7 +211,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("ignores an invalid palette", () => {
-      setUrlSearch("simulation=lorenz&palette=invalid");
+      setUrl("/lorenz", "palette=invalid");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -211,7 +219,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("ignores an invalid background colour", () => {
-      setUrlSearch("simulation=lorenz&background=red");
+      setUrl("/lorenz", "background=red");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -219,9 +227,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("ignores shared settings outside their valid ranges", () => {
-      setUrlSearch(
-        "simulation=lorenz&glow=999&trailLifetime=0&simulationSpeed=9",
-      );
+      setUrl("/lorenz", "glow=999&trailLifetime=0&simulationSpeed=9");
 
       const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
@@ -233,46 +239,56 @@ describe("Lorenz URL state", () => {
         DEFAULT_PLAYBACK_SETTINGS.simulationSpeed,
       );
     });
-
-    it("falls back to the codec simulation for an invalid simulation name", () => {
-      setUrlSearch("simulation=unknown");
-
-      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
-
-      expect(result.simulation).toBe("lorenz");
-    });
   });
 
   describe("setSimulationInUrl", () => {
-    it("serializes the Lorenz simulation and seed", () => {
-      const state = createState({
-        simulation: "lorenz",
+    it("serializes the seed without serializing simulation identity", () => {
+      const state = createLorenzState({
         seed: 12345,
-        settings: createRandomConfig(12345),
+        settings: createLorenzRandomConfig(12345),
       });
 
       setSimulationInUrl(state, lorenzCodec, DEFAULTS);
 
       const params = new URLSearchParams(window.location.search);
 
-      expect(params.get("simulation")).toBe(null);
+      expect(params.get("simulation")).toBeNull();
       expect(params.get("seed")).toBe("12345");
     });
 
-    it("omits simulation when using the codec's default simulation", () => {
-      const state = createState({
-        simulation: "lorenz",
+    it("preserves the Lorenz pathname when replacing URL state", () => {
+      const state = createLorenzState({
+        seed: 12345,
+        settings: createLorenzRandomConfig(12345),
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      expect(window.location.pathname).toBe("/lorenz");
+      expect(window.location.search).toContain("seed=12345");
+      expect(window.location.search).not.toContain("simulation=");
+    });
+
+    it("removes a legacy simulation query parameter when serializing", () => {
+      setUrl("/lorenz", "simulation=lorenz&foo=bar");
+
+      const state = createLorenzState({
+        seed: 12345,
+        settings: createLorenzRandomConfig(12345),
       });
 
       setSimulationInUrl(state, lorenzCodec, DEFAULTS);
 
       const params = new URLSearchParams(window.location.search);
 
+      expect(window.location.pathname).toBe("/lorenz");
       expect(params.has("simulation")).toBe(false);
+      expect(params.has("foo")).toBe(false);
+      expect(params.get("seed")).toBe("12345");
     });
 
     it("omits seed zero", () => {
-      const state = createState({
+      const state = createLorenzState({
         seed: 0,
       });
 
@@ -285,9 +301,9 @@ describe("Lorenz URL state", () => {
 
     it("serializes Lorenz values that differ from the seeded configuration", () => {
       const seed = 12345;
-      const generated = createRandomConfig(seed);
+      const generated = createLorenzRandomConfig(seed);
 
-      const state = createState({
+      const state = createLorenzState({
         seed,
         settings: {
           ...generated,
@@ -306,9 +322,9 @@ describe("Lorenz URL state", () => {
     it("omits Lorenz values that match the seeded configuration", () => {
       const seed = 12345;
 
-      const state = createState({
+      const state = createLorenzState({
         seed,
-        settings: createRandomConfig(seed),
+        settings: createLorenzRandomConfig(seed),
       });
 
       setSimulationInUrl(state, lorenzCodec, DEFAULTS);
@@ -325,7 +341,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("serializes shared visual overrides", () => {
-      const state = createState({
+      const state = createLorenzState({
         shared: {
           ...DEFAULT_VISUAL_SETTINGS,
           ...DEFAULT_PLAYBACK_SETTINGS,
@@ -347,7 +363,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("serializes shared playback overrides", () => {
-      const state = createState({
+      const state = createLorenzState({
         shared: {
           ...DEFAULT_VISUAL_SETTINGS,
           ...DEFAULT_PLAYBACK_SETTINGS,
@@ -365,7 +381,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("does not serialize paused state", () => {
-      const state = createState({
+      const state = createLorenzState({
         shared: {
           ...DEFAULT_VISUAL_SETTINGS,
           ...DEFAULT_PLAYBACK_SETTINGS,
@@ -383,40 +399,53 @@ describe("Lorenz URL state", () => {
     it("replaces browser history by default", () => {
       const before = window.history.length;
 
-      const state = createState({
+      const state = createLorenzState({
         seed: 123,
-        settings: createRandomConfig(123),
+        settings: createLorenzRandomConfig(123),
       });
 
       setSimulationInUrl(state, lorenzCodec, DEFAULTS);
 
       expect(window.history.length).toBe(before);
+      expect(window.location.pathname).toBe("/lorenz");
     });
 
-    it("pushes a new history entry when requested", () => {
+    it("pushes a new history entry when requested and preserves the pathname", () => {
       const before = window.history.length;
 
-      const state = createState({
+      const state = createLorenzState({
         seed: 123,
-        settings: createRandomConfig(123),
+        settings: createLorenzRandomConfig(123),
       });
 
       setSimulationInUrl(state, lorenzCodec, DEFAULTS, "push");
 
       expect(window.history.length).toBe(before + 1);
+      expect(window.location.pathname).toBe("/lorenz");
+      expect(window.location.search).toContain("seed=123");
+    });
+
+    it("rejects state for a different simulation", () => {
+      const state = createLorenzState({
+        simulation: "double-pendulum",
+      });
+
+      expect(() => {
+        setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+      }).toThrow(/does not match URL codec/i);
     });
   });
 
   describe("getSimulationShareUrl", () => {
     it("generates a URL without changing browser history", () => {
-      window.history.replaceState({}, "", "/existing?foo=bar");
+      window.history.replaceState({}, "", "/lorenz?foo=bar");
 
       const beforeUrl = window.location.href;
       const beforeHistoryLength = window.history.length;
 
-      const state = createState({
+      const state = createLorenzState({
         seed: 12345,
-        settings: createRandomConfig(12345),
+        settings: createLorenzRandomConfig(12345),
       });
 
       const shareUrl = getSimulationShareUrl(state, lorenzCodec, DEFAULTS);
@@ -428,11 +457,26 @@ describe("Lorenz URL state", () => {
       expect(window.history.length).toBe(beforeHistoryLength);
     });
 
+    it("preserves the Lorenz pathname in a share URL", () => {
+      setUrl("/lorenz");
+
+      const state = createLorenzState({
+        seed: 12345,
+        settings: createLorenzRandomConfig(12345),
+      });
+
+      const url = new URL(getSimulationShareUrl(state, lorenzCodec, DEFAULTS));
+
+      expect(url.pathname).toBe("/lorenz");
+      expect(url.searchParams.get("seed")).toBe("12345");
+      expect(url.searchParams.get("simulation")).toBeNull();
+    });
+
     it("includes explicit Lorenz overrides", () => {
       const seed = 12345;
-      const generated = createRandomConfig(seed);
+      const generated = createLorenzRandomConfig(seed);
 
-      const state = createState({
+      const state = createLorenzState({
         seed,
         settings: {
           ...generated,
@@ -451,7 +495,7 @@ describe("Lorenz URL state", () => {
     });
 
     it("includes shared visual overrides", () => {
-      const state = createState({
+      const state = createLorenzState({
         shared: {
           ...DEFAULT_VISUAL_SETTINGS,
           ...DEFAULT_PLAYBACK_SETTINGS,
@@ -467,14 +511,24 @@ describe("Lorenz URL state", () => {
       expect(url.searchParams.get("background")).toBe("#112233");
       expect(url.searchParams.get("glow")).toBe("150");
     });
+
+    it("rejects state for a different simulation", () => {
+      const state = createLorenzState({
+        simulation: "double-pendulum",
+      });
+
+      expect(() => {
+        getSimulationShareUrl(state, lorenzCodec, DEFAULTS);
+      }).toThrow(/does not match URL codec/i);
+    });
   });
 
   describe("round trips", () => {
     it("round-trips a seeded Lorenz configuration", () => {
       const seed = 987654321;
-      const generated = createRandomConfig(seed);
+      const generated = createLorenzRandomConfig(seed);
 
-      const state = createState({
+      const state = createLorenzState({
         seed,
         settings: generated,
       });
@@ -483,6 +537,7 @@ describe("Lorenz URL state", () => {
 
       const loaded = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
+      expect(window.location.pathname).toBe("/lorenz");
       expect(loaded.simulation).toBe("lorenz");
       expect(loaded.seed).toBe(seed);
 
@@ -491,7 +546,7 @@ describe("Lorenz URL state", () => {
 
     it("round-trips seeded settings with explicit overrides", () => {
       const seed = 987654321;
-      const generated = createRandomConfig(seed);
+      const generated = createLorenzRandomConfig(seed);
 
       const settings: LorenzSettings = {
         ...generated,
@@ -500,7 +555,7 @@ describe("Lorenz URL state", () => {
         startingHue: 72,
       };
 
-      const state = createState({
+      const state = createLorenzState({
         seed,
         settings,
         shared: {
@@ -516,6 +571,7 @@ describe("Lorenz URL state", () => {
 
       const loaded = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
+      expect(window.location.pathname).toBe("/lorenz");
       expect(loaded.seed).toBe(seed);
 
       expectLorenzSettingsEqual(loaded.settings, settings);
@@ -530,6 +586,7 @@ describe("Lorenz URL state", () => {
 });
 
 // DOUBLE PENDULUM TESTS
+
 const DEFAULT_DOUBLE_PENDULUM_SETTINGS: ControlSettings = {
   seed: 42,
   background: "#071018",
@@ -556,247 +613,315 @@ const doublePendulumCodec = createDoublePendulumUrlCodec(
   DEFAULT_DOUBLE_PENDULUM_SETTINGS,
 );
 
+function createDoublePendulumState(
+  overrides: Partial<SimulationUrlState<ControlSettings>> = {},
+): SimulationUrlState<ControlSettings> {
+  return {
+    simulation: "double-pendulum",
+    seed: 0,
+    settings: {
+      ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+    },
+    shared: {
+      ...DEFAULT_VISUAL_SETTINGS,
+      ...DEFAULT_PLAYBACK_SETTINGS,
+    },
+    ...overrides,
+  };
+}
+
 describe("Double Pendulum URL state", () => {
   beforeEach(() => {
-    window.history.replaceState({}, "", "/");
+    setUrl("/double-pendulum");
   });
 
   afterEach(() => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("loads the default configuration with no URL parameters", () => {
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+  describe("loadSimulationFromUrl", () => {
+    it("loads the default configuration with no URL parameters", () => {
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
 
-    expect(result.simulation).toBe("double-pendulum");
-    expect(result.seed).toBe(0);
+      expect(result.simulation).toBe("double-pendulum");
+      expect(result.seed).toBe(0);
 
-    expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
+      expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
+      expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
 
-    expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
+      expect(result.settings.initialAngle1).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
+      );
 
-    expect(result.settings.initialAngle1).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
-    );
+      expect(result.settings.initialOmega1).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
+      );
+    });
 
-    expect(result.settings.initialOmega1).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
-    );
+    it("ignores a legacy simulation query parameter", () => {
+      setUrl("/double-pendulum", "simulation=lorenz&seed=12345");
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("double-pendulum");
+      expect(result.seed).toBe(12345);
+    });
+
+    it("reconstructs a deterministic configuration from a seed", () => {
+      const seed = 12345;
+
+      setUrl("/double-pendulum", `seed=${seed}`);
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      const expected = createDoublePendulumRandomConfig(
+        seed,
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+      );
+
+      expect(result.seed).toBe(seed);
+      expect(result.settings.m1).toBe(expected.m1);
+      expect(result.settings.m2).toBe(expected.m2);
+      expect(result.settings.l1).toBe(expected.l1);
+      expect(result.settings.l2).toBe(expected.l2);
+      expect(result.settings.gravity).toBe(expected.gravity);
+      expect(result.settings.initialAngle1).toBe(expected.initialAngle1);
+      expect(result.settings.initialAngle2).toBe(expected.initialAngle2);
+      expect(result.settings.initialOmega1).toBe(expected.initialOmega1);
+      expect(result.settings.initialOmega2).toBe(expected.initialOmega2);
+      expect(result.settings.startingHue).toBe(expected.startingHue);
+    });
+
+    it("applies explicit physical overrides", () => {
+      setUrl("/double-pendulum", "m1=1.8&m2=2.1&l1=1.5&l2=0.8&gravity=12");
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.settings.m1).toBe(1.8);
+      expect(result.settings.m2).toBe(2.1);
+      expect(result.settings.l1).toBe(1.5);
+      expect(result.settings.l2).toBe(0.8);
+      expect(result.settings.gravity).toBe(12);
+    });
+
+    it("applies explicit initial-condition overrides", () => {
+      setUrl(
+        "/double-pendulum",
+        "initialAngle1=1.25" +
+          "&initialAngle2=-2" +
+          "&initialOmega1=3" +
+          "&initialOmega2=-4",
+      );
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.settings.initialAngle1).toBe(1.25);
+      expect(result.settings.initialAngle2).toBe(-2);
+      expect(result.settings.initialOmega1).toBe(3);
+      expect(result.settings.initialOmega2).toBe(-4);
+    });
+
+    it("applies an explicit starting hue override", () => {
+      setUrl("/double-pendulum", "startingHue=275");
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.settings.startingHue).toBe(275);
+    });
+
+    it("ignores invalid physical parameter values", () => {
+      setUrl("/double-pendulum", "m1=0&m2=99&l1=-1&l2=999&gravity=abc");
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
+      expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
+      expect(result.settings.l1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l1);
+      expect(result.settings.l2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l2);
+      expect(result.settings.gravity).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.gravity,
+      );
+    });
+
+    it("ignores invalid initial conditions", () => {
+      setUrl(
+        "/double-pendulum",
+        "initialAngle1=10" +
+          "&initialAngle2=-10" +
+          "&initialOmega1=999" +
+          "&initialOmega2=abc" +
+          "&startingHue=360",
+      );
+
+      const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+      expect(result.settings.initialAngle1).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
+      );
+
+      expect(result.settings.initialAngle2).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle2,
+      );
+
+      expect(result.settings.initialOmega1).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
+      );
+
+      expect(result.settings.initialOmega2).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega2,
+      );
+
+      expect(result.settings.startingHue).toBe(
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS.startingHue,
+      );
+    });
   });
 
-  it("reconstructs a deterministic configuration from a seed", () => {
-    const seed = 12345;
+  describe("setSimulationInUrl", () => {
+    it("serializes physical overrides without serializing simulation identity", () => {
+      const state = createDoublePendulumState({
+        settings: {
+          ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+          m1: 1.75,
+          gravity: 14,
+        },
+      });
 
-    setUrlSearch(`simulation=double-pendulum&seed=${seed}`);
+      setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
 
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+      const params = new URLSearchParams(window.location.search);
 
-    const expected = createDoublePendulumRandomConfig(
-      seed,
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS,
-    );
+      expect(window.location.pathname).toBe("/double-pendulum");
+      expect(params.get("simulation")).toBeNull();
+      expect(params.get("m1")).toBe("1.75");
+      expect(params.get("gravity")).toBe("14");
+    });
 
-    expect(result.seed).toBe(seed);
-    expect(result.settings.m1).toBe(expected.m1);
-    expect(result.settings.m2).toBe(expected.m2);
-    expect(result.settings.l1).toBe(expected.l1);
-    expect(result.settings.l2).toBe(expected.l2);
-    expect(result.settings.gravity).toBe(expected.gravity);
-    expect(result.settings.initialAngle1).toBe(expected.initialAngle1);
-    expect(result.settings.initialAngle2).toBe(expected.initialAngle2);
-    expect(result.settings.initialOmega1).toBe(expected.initialOmega1);
-    expect(result.settings.initialOmega2).toBe(expected.initialOmega2);
-    expect(result.settings.startingHue).toBe(expected.startingHue);
+    it("serializes initial-condition overrides", () => {
+      const state = createDoublePendulumState({
+        settings: {
+          ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+          initialAngle1: 1.2,
+          initialAngle2: -1.7,
+          initialOmega1: 2.5,
+          initialOmega2: -3.5,
+          startingHue: 90,
+        },
+      });
+
+      setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("initialAngle1")).toBe("1.2");
+      expect(params.get("initialAngle2")).toBe("-1.7");
+      expect(params.get("initialOmega1")).toBe("2.5");
+      expect(params.get("initialOmega2")).toBe("-3.5");
+      expect(params.get("startingHue")).toBe("90");
+    });
+
+    it("preserves the Double Pendulum pathname when replacing URL state", () => {
+      const seed = 12345;
+
+      const state = createDoublePendulumState({
+        seed,
+        settings: createDoublePendulumRandomConfig(
+          seed,
+          DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        ),
+      });
+
+      setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+
+      expect(window.location.pathname).toBe("/double-pendulum");
+      expect(window.location.search).toContain("seed=12345");
+      expect(window.location.search).not.toContain("simulation=");
+    });
+
+    it("preserves the Double Pendulum pathname when pushing URL state", () => {
+      const before = window.history.length;
+      const seed = 12345;
+
+      const state = createDoublePendulumState({
+        seed,
+        settings: createDoublePendulumRandomConfig(
+          seed,
+          DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        ),
+      });
+
+      setSimulationInUrl(state, doublePendulumCodec, DEFAULTS, "push");
+
+      expect(window.history.length).toBe(before + 1);
+      expect(window.location.pathname).toBe("/double-pendulum");
+      expect(window.location.search).toContain("seed=12345");
+    });
+
+    it("rejects state for a different simulation", () => {
+      const state = createDoublePendulumState({
+        simulation: "lorenz",
+      });
+
+      expect(() => {
+        setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+      }).toThrow(/does not match URL codec/i);
+    });
   });
 
-  it("applies explicit physical overrides", () => {
-    setUrlSearch(
-      "simulation=double-pendulum" +
-        "&m1=1.8" +
-        "&m2=2.1" +
-        "&l1=1.5" +
-        "&l2=0.8" +
-        "&gravity=12",
-    );
+  describe("getSimulationShareUrl", () => {
+    it("preserves the Double Pendulum pathname in a share URL", () => {
+      const seed = 12345;
 
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+      const state = createDoublePendulumState({
+        seed,
+        settings: createDoublePendulumRandomConfig(
+          seed,
+          DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        ),
+      });
 
-    expect(result.settings.m1).toBe(1.8);
-    expect(result.settings.m2).toBe(2.1);
-    expect(result.settings.l1).toBe(1.5);
-    expect(result.settings.l2).toBe(0.8);
-    expect(result.settings.gravity).toBe(12);
+      const url = new URL(
+        getSimulationShareUrl(state, doublePendulumCodec, DEFAULTS),
+      );
+
+      expect(url.pathname).toBe("/double-pendulum");
+      expect(url.searchParams.get("seed")).toBe("12345");
+      expect(url.searchParams.get("simulation")).toBeNull();
+    });
   });
 
-  it("applies explicit initial-condition overrides", () => {
-    setUrlSearch(
-      "simulation=double-pendulum" +
-        "&initialAngle1=1.25" +
-        "&initialAngle2=-2" +
-        "&initialOmega1=3" +
-        "&initialOmega2=-4",
-    );
+  describe("round trips", () => {
+    it("round-trips a seeded Double Pendulum configuration", () => {
+      const seed = 987654321;
 
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+      const generated = createDoublePendulumRandomConfig(
+        seed,
+        DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+      );
 
-    expect(result.settings.initialAngle1).toBe(1.25);
-    expect(result.settings.initialAngle2).toBe(-2);
-    expect(result.settings.initialOmega1).toBe(3);
-    expect(result.settings.initialOmega2).toBe(-4);
-  });
+      const state = createDoublePendulumState({
+        seed,
+        settings: generated,
+      });
 
-  it("applies an explicit starting hue override", () => {
-    setUrlSearch("simulation=double-pendulum&startingHue=275");
+      setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
 
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+      const loaded = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
 
-    expect(result.settings.startingHue).toBe(275);
-  });
+      expect(window.location.pathname).toBe("/double-pendulum");
+      expect(loaded.simulation).toBe("double-pendulum");
+      expect(loaded.seed).toBe(seed);
 
-  it("ignores invalid physical parameter values", () => {
-    setUrlSearch(
-      "simulation=double-pendulum" +
-        "&m1=0" +
-        "&m2=99" +
-        "&l1=-1" +
-        "&l2=999" +
-        "&gravity=abc",
-    );
-
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
-
-    expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
-
-    expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
-
-    expect(result.settings.l1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l1);
-
-    expect(result.settings.l2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l2);
-
-    expect(result.settings.gravity).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.gravity,
-    );
-  });
-
-  it("ignores invalid initial conditions", () => {
-    setUrlSearch(
-      "simulation=double-pendulum" +
-        "&initialAngle1=10" +
-        "&initialAngle2=-10" +
-        "&initialOmega1=999" +
-        "&initialOmega2=abc" +
-        "&startingHue=360",
-    );
-
-    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
-
-    expect(result.settings.initialAngle1).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
-    );
-
-    expect(result.settings.initialAngle2).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle2,
-    );
-
-    expect(result.settings.initialOmega1).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
-    );
-
-    expect(result.settings.initialOmega2).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega2,
-    );
-
-    expect(result.settings.startingHue).toBe(
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS.startingHue,
-    );
-  });
-
-  it("serializes physical overrides", () => {
-    const state = {
-      simulation: "double-pendulum" as const,
-      seed: 0,
-      settings: {
-        ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
-        m1: 1.75,
-        gravity: 14,
-      },
-      shared: {
-        ...DEFAULT_VISUAL_SETTINGS,
-        ...DEFAULT_PLAYBACK_SETTINGS,
-      },
-    };
-
-    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
-
-    const params = new URLSearchParams(window.location.search);
-
-    expect(params.get("m1")).toBe("1.75");
-    expect(params.get("gravity")).toBe("14");
-  });
-
-  it("serializes initial-condition overrides", () => {
-    const state = {
-      simulation: "double-pendulum" as const,
-      seed: 0,
-      settings: {
-        ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
-        initialAngle1: 1.2,
-        initialAngle2: -1.7,
-        initialOmega1: 2.5,
-        initialOmega2: -3.5,
-        startingHue: 90,
-      },
-      shared: {
-        ...DEFAULT_VISUAL_SETTINGS,
-        ...DEFAULT_PLAYBACK_SETTINGS,
-      },
-    };
-
-    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
-
-    const params = new URLSearchParams(window.location.search);
-
-    expect(params.get("initialAngle1")).toBe("1.2");
-    expect(params.get("initialAngle2")).toBe("-1.7");
-    expect(params.get("initialOmega1")).toBe("2.5");
-    expect(params.get("initialOmega2")).toBe("-3.5");
-    expect(params.get("startingHue")).toBe("90");
-  });
-
-  it("round-trips a seeded Double Pendulum configuration", () => {
-    const seed = 987654321;
-
-    const generated = createDoublePendulumRandomConfig(
-      seed,
-      DEFAULT_DOUBLE_PENDULUM_SETTINGS,
-    );
-
-    const state = {
-      simulation: "double-pendulum" as const,
-      seed,
-      settings: generated,
-      shared: {
-        ...DEFAULT_VISUAL_SETTINGS,
-        ...DEFAULT_PLAYBACK_SETTINGS,
-      },
-    };
-
-    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
-
-    const loaded = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
-
-    expect(loaded.simulation).toBe("double-pendulum");
-    expect(loaded.seed).toBe(seed);
-
-    expect(loaded.settings.m1).toBe(generated.m1);
-    expect(loaded.settings.m2).toBe(generated.m2);
-    expect(loaded.settings.l1).toBe(generated.l1);
-    expect(loaded.settings.l2).toBe(generated.l2);
-    expect(loaded.settings.gravity).toBe(generated.gravity);
-    expect(loaded.settings.initialAngle1).toBe(generated.initialAngle1);
-    expect(loaded.settings.initialAngle2).toBe(generated.initialAngle2);
-    expect(loaded.settings.initialOmega1).toBe(generated.initialOmega1);
-    expect(loaded.settings.initialOmega2).toBe(generated.initialOmega2);
-    expect(loaded.settings.startingHue).toBe(generated.startingHue);
+      expect(loaded.settings.m1).toBe(generated.m1);
+      expect(loaded.settings.m2).toBe(generated.m2);
+      expect(loaded.settings.l1).toBe(generated.l1);
+      expect(loaded.settings.l2).toBe(generated.l2);
+      expect(loaded.settings.gravity).toBe(generated.gravity);
+      expect(loaded.settings.initialAngle1).toBe(generated.initialAngle1);
+      expect(loaded.settings.initialAngle2).toBe(generated.initialAngle2);
+      expect(loaded.settings.initialOmega1).toBe(generated.initialOmega1);
+      expect(loaded.settings.initialOmega2).toBe(generated.initialOmega2);
+      expect(loaded.settings.startingHue).toBe(generated.startingHue);
+    });
   });
 });

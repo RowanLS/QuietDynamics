@@ -104,13 +104,6 @@ const LORENZ_URL_CODEC = createLorenzUrlCodec(
   DEFAULT_LORENZ_SETTINGS,
 );
 
-// HELPER TO DETERMINE SIMULATION FROM URL
-function getRequestedSimulation(): SimulationName {
-  const value = new URLSearchParams(window.location.search).get("simulation");
-
-  return value === "lorenz" ? "lorenz" : "double-pendulum";
-}
-
 // INITIAL STATE LOADER
 interface InitialAppState {
   simulation: SimulationName;
@@ -121,9 +114,7 @@ interface InitialAppState {
   lorenzSettings: LorenzSettings;
 }
 
-function loadInitialAppState(): InitialAppState {
-  const simulation = getRequestedSimulation();
-
+function loadInitialAppState(simulation: SimulationName): InitialAppState {
   if (simulation === "lorenz") {
     const loaded = loadSimulationFromUrl(LORENZ_URL_CODEC, DEFAULT_URL_STATE);
 
@@ -168,11 +159,13 @@ function loadInitialAppState(): InitialAppState {
 
 const UI_HIDE_DELAY = 4000;
 
-function App() {
-  // CREATE STATES
-  const [initialState] = useState(loadInitialAppState);
+interface AppProps {
+  simulationName: SimulationName;
+}
 
-  const [simulationName] = useState<SimulationName>(initialState.simulation);
+function App({ simulationName }: AppProps) {
+  // CREATE STATES
+  const [initialState] = useState(() => loadInitialAppState(simulationName));
 
   const [seed, setSeed] = useState(initialState.seed);
 
