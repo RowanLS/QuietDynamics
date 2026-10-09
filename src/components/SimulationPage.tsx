@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
+import { Link } from "react-router-dom";
 import type { PlaybackSettings, VisualSettings } from "../types/settings";
 import type {
   Simulation,
@@ -223,11 +223,11 @@ export function SimulationPage({
          */
         if (
           event.target instanceof HTMLElement &&
-          event.target.closest(".control-panel")
+          (event.target.closest(".control-panel") ||
+            event.target.closest("[data-no-randomise]"))
         ) {
           return;
         }
-
         onRandomise();
       }}
     >
@@ -243,7 +243,11 @@ export function SimulationPage({
         }`}
       >
         <div className="overlay">
-          <h1>Quiet Dynamics</h1>
+          <h1>
+            <Link to="/" className="home-link" data-no-randomise>
+              Quiet Dynamics
+            </Link>
+          </h1>
           <h6>Mathematical motion, endlessly unfolding</h6>
           <p>{title}</p>
         </div>

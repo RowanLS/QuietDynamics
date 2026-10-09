@@ -157,3 +157,23 @@ input {
 .ui-hidden .controls-toggle {
   pointer-events: none;
 }
+
+.home-link {
+  pointer-events: auto;
+
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.home-link:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.home-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 0.25rem;
+  border-radius: 0.1rem;
+}
