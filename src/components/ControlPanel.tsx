@@ -186,6 +186,47 @@ export function ControlPanel({
           Fullscreen
         </button>
       </div>
+
+      <details
+        className="keyboard-shortcuts"
+        aria-labelledby="keyboard-shortcuts-heading"
+      >
+        <summary>Keyboard shortcuts</summary>
+        <dl className="shortcut-list">
+          <div>
+            <dt>
+              <kbd>Space</kbd>
+            </dt>
+            <dd>Pause / resume</dd>
+          </div>
+
+          <div>
+            <dt>
+              <kbd>R</kbd>
+            </dt>
+            <dd>Randomise</dd>
+          </div>
+
+          <div>
+            <dt>
+              <kbd>F</kbd>
+            </dt>
+            <dd>Fullscreen</dd>
+          </div>
+
+          <div>
+            <dt>
+              <kbd>Esc</kbd>
+            </dt>
+            <dd>Close controls</dd>
+          </div>
+
+          <div>
+            <dt>Double-click</dt>
+            <dd>Randomise</dd>
+          </div>
+        </dl>
+      </details>
     </aside>
   );
 }

@@ -182,3 +182,20 @@
     transform: none;
   }
 }
+
+.landing-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+
+  margin: 1.25rem auto 0;
+
+  color: rgb(225 235 240 / 45%);
+  font-size: 0.78rem;
+}
+
+.landing-shortcuts kbd {
+  font-family: inherit;
+  color: rgb(225 235 240 / 65%);
+}

@@ -57,6 +57,23 @@ export function LandingPage() {
           <span aria-hidden="true"> →</span>
         </Link>
       </div>
+      <p className="landing-shortcuts" aria-label="Keyboard shortcuts">
+        <span>
+          <kbd>R</kbd> Randomise
+        </span>
+
+        <span aria-hidden="true">·</span>
+
+        <span>
+          <kbd>Space</kbd> Pause
+        </span>
+
+        <span aria-hidden="true">·</span>
+
+        <span>
+          <kbd>F</kbd> Fullscreen
+        </span>
+      </p>
     </main>
   );
 }
