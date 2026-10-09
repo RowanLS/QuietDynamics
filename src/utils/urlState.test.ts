@@ -1,269 +1,526 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { getShareUrl, loadSettingsFromUrl, setSettingsInUrl } from "./urlState";
+import { createLorenzUrlCodec } from "../simulations/lorenz/url";
+import { createRandomConfig } from "../simulations/lorenz/randomise";
+import type { LorenzSettings } from "../simulations/lorenz/settings";
+import {
+  getSimulationShareUrl,
+  loadSimulationFromUrl,
+  setSimulationInUrl,
+  type SharedUrlDefaults,
+  type SimulationUrlState,
+} from "./urlState";
 
-import { createRandomConfig } from "../simulations/doublePendulum/randomise";
-
-import type { ControlSettings } from "../types/settings";
-
-const DEFAULT_SETTINGS: ControlSettings = {
-  seed: 0,
-
-  background: "#071018",
-
-  palette: "neon-rainbow",
-
+const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
+  sigma: 10,
+  rho: 28,
+  beta: 8 / 3,
+  initialX: 0.1,
+  initialY: 0,
+  initialZ: 0,
   startingHue: 200,
-
-  trailLifetime: 18,
-
-  glow: 100,
-
-  rainbowSpeed: 0.8,
-
-  simulationSpeed: 1,
-
-  paused: false,
-
-  m1: 1,
-
-  m2: 1.37,
-
-  l1: 1,
-
-  l2: 1,
-
-  gravity: 9.81,
-
-  initialAngle1: 2.6,
-
-  initialAngle2: -0.9,
-
-  initialOmega1: 0,
-
-  initialOmega2: 0,
 };
 
-describe("loadSettingsFromUrl", () => {
+const DEFAULT_VISUAL_SETTINGS = {
+  background: "#071018",
+  palette: "neon-rainbow" as const,
+  trailLifetime: 18,
+  glow: 100,
+  rainbowSpeed: 0.8,
+};
+
+const DEFAULT_PLAYBACK_SETTINGS = {
+  simulationSpeed: 1,
+  paused: false,
+};
+
+const DEFAULTS: SharedUrlDefaults = {
+  visual: DEFAULT_VISUAL_SETTINGS,
+  playback: DEFAULT_PLAYBACK_SETTINGS,
+};
+
+const lorenzCodec = createLorenzUrlCodec(
+  createRandomConfig,
+  DEFAULT_LORENZ_SETTINGS,
+);
+
+function createState(
+  overrides: Partial<SimulationUrlState<LorenzSettings>> = {},
+): SimulationUrlState<LorenzSettings> {
+  return {
+    simulation: "lorenz",
+    seed: 0,
+    settings: {
+      ...DEFAULT_LORENZ_SETTINGS,
+    },
+    shared: {
+      ...DEFAULT_VISUAL_SETTINGS,
+      ...DEFAULT_PLAYBACK_SETTINGS,
+    },
+    ...overrides,
+  };
+}
+
+function setUrlSearch(search: string): void {
+  window.history.replaceState({}, "", `/?${search}`);
+}
+
+function expectLorenzSettingsEqual(
+  actual: LorenzSettings,
+  expected: LorenzSettings,
+): void {
+  expect(actual.sigma).toBeCloseTo(expected.sigma, 12);
+  expect(actual.rho).toBeCloseTo(expected.rho, 12);
+  expect(actual.beta).toBeCloseTo(expected.beta, 12);
+
+  expect(actual.initialX).toBeCloseTo(expected.initialX, 12);
+  expect(actual.initialY).toBeCloseTo(expected.initialY, 12);
+  expect(actual.initialZ).toBeCloseTo(expected.initialZ, 12);
+
+  expect(actual.startingHue).toBeCloseTo(expected.startingHue, 12);
+}
+
+describe("Lorenz URL state", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("returns defaults when the URL has no configuration", () => {
-    const result = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(result).toEqual(DEFAULT_SETTINGS);
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
   });
 
-  it("loads a deterministic configuration from a seed", () => {
-    const seed = 123456;
+  describe("loadSimulationFromUrl", () => {
+    it("uses defaults when the URL contains no configuration", () => {
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
-    window.history.replaceState({}, "", `/?seed=${seed}`);
+      expect(result.simulation).toBe("lorenz");
+      expect(result.seed).toBe(0);
 
-    const expected = createRandomConfig(seed, DEFAULT_SETTINGS);
+      expectLorenzSettingsEqual(result.settings, DEFAULT_LORENZ_SETTINGS);
 
-    const result = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(result).toEqual(expected);
-  });
-
-  it("applies explicit overrides on top of the seed", () => {
-    const seed = 123456;
-
-    window.history.replaceState(
-      {},
-      "",
-      [
-        `/?seed=${seed}`,
-        "m1=1.8",
-        "gravity=12",
-        "glow=175",
-        "palette=solid",
-      ].join("&"),
-    );
-
-    const generated = createRandomConfig(seed, DEFAULT_SETTINGS);
-
-    const result = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(result.seed).toBe(seed);
-
-    expect(result.m1).toBe(1.8);
-
-    expect(result.gravity).toBe(12);
-
-    expect(result.glow).toBe(175);
-
-    expect(result.palette).toBe("solid");
-
-    expect(result.l1).toBe(generated.l1);
-  });
-
-  it("ignores invalid numeric overrides", () => {
-    window.history.replaceState({}, "", "/?m1=banana&gravity=9999&glow=-20");
-
-    const result = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(result.m1).toBe(DEFAULT_SETTINGS.m1);
-
-    expect(result.gravity).toBe(DEFAULT_SETTINGS.gravity);
-
-    expect(result.glow).toBe(DEFAULT_SETTINGS.glow);
-  });
-
-  it("ignores invalid palette and background values", () => {
-    window.history.replaceState(
-      {},
-      "",
-      "/?palette=not-a-palette&background=red",
-    );
-
-    const result = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(result.palette).toBe(DEFAULT_SETTINGS.palette);
-
-    expect(result.background).toBe(DEFAULT_SETTINGS.background);
-  });
-
-  it("never restores paused state from the URL", () => {
-    const result = loadSettingsFromUrl({
-      ...DEFAULT_SETTINGS,
-      paused: true,
+      expect(result.shared).toEqual({
+        ...DEFAULT_VISUAL_SETTINGS,
+        ...DEFAULT_PLAYBACK_SETTINGS,
+      });
     });
 
-    expect(result.paused).toBe(false);
+    it("loads the Lorenz simulation from the URL", () => {
+      setUrlSearch("simulation=lorenz");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("lorenz");
+    });
+
+    it("uses a deterministic seed to reconstruct Lorenz settings", () => {
+      setUrlSearch("simulation=lorenz&seed=12345");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      const expected = createRandomConfig(12345);
+
+      expect(result.seed).toBe(12345);
+      expectLorenzSettingsEqual(result.settings, expected);
+    });
+
+    it("applies explicit Lorenz overrides on top of the seeded configuration", () => {
+      setUrlSearch("simulation=lorenz&seed=12345&sigma=15&rho=30&initialX=2.5");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      const generated = createRandomConfig(12345);
+
+      expect(result.settings.sigma).toBe(15);
+      expect(result.settings.rho).toBe(30);
+      expect(result.settings.initialX).toBe(2.5);
+
+      expect(result.settings.beta).toBeCloseTo(generated.beta, 12);
+      expect(result.settings.initialY).toBeCloseTo(generated.initialY, 12);
+      expect(result.settings.initialZ).toBeCloseTo(generated.initialZ, 12);
+    });
+
+    it("loads shared visual settings from the URL", () => {
+      setUrlSearch(
+        "simulation=lorenz&background=%23ffffff&palette=rainbow&glow=175&trailLifetime=25",
+      );
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.background).toBe("#ffffff");
+      expect(result.shared.palette).toBe("rainbow");
+      expect(result.shared.glow).toBe(175);
+      expect(result.shared.trailLifetime).toBe(25);
+    });
+
+    it("loads shared playback settings from the URL", () => {
+      setUrlSearch("simulation=lorenz&simulationSpeed=1.75&rainbowSpeed=2.2");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.simulationSpeed).toBe(1.75);
+      expect(result.shared.rainbowSpeed).toBe(2.2);
+    });
+
+    it("does not restore paused state from the URL", () => {
+      setUrlSearch("simulation=lorenz&paused=true");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.paused).toBe(false);
+    });
+
+    it("ignores an invalid seed", () => {
+      setUrlSearch("simulation=lorenz&seed=not-a-seed");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.seed).toBe(0);
+
+      expectLorenzSettingsEqual(result.settings, DEFAULT_LORENZ_SETTINGS);
+    });
+
+    it("ignores an out-of-range seed", () => {
+      setUrlSearch("simulation=lorenz&seed=4294967296");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.seed).toBe(0);
+    });
+
+    it("ignores invalid Lorenz parameter values", () => {
+      setUrlSearch("simulation=lorenz&sigma=-1&rho=abc&beta=100&initialX=999");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.settings.sigma).toBe(DEFAULT_LORENZ_SETTINGS.sigma);
+      expect(result.settings.rho).toBe(DEFAULT_LORENZ_SETTINGS.rho);
+      expect(result.settings.beta).toBe(DEFAULT_LORENZ_SETTINGS.beta);
+      expect(result.settings.initialX).toBe(DEFAULT_LORENZ_SETTINGS.initialX);
+    });
+
+    it("ignores an invalid palette", () => {
+      setUrlSearch("simulation=lorenz&palette=invalid");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.palette).toBe(DEFAULT_VISUAL_SETTINGS.palette);
+    });
+
+    it("ignores an invalid background colour", () => {
+      setUrlSearch("simulation=lorenz&background=red");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.background).toBe(DEFAULT_VISUAL_SETTINGS.background);
+    });
+
+    it("ignores shared settings outside their valid ranges", () => {
+      setUrlSearch(
+        "simulation=lorenz&glow=999&trailLifetime=0&simulationSpeed=9",
+      );
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.shared.glow).toBe(DEFAULT_VISUAL_SETTINGS.glow);
+      expect(result.shared.trailLifetime).toBe(
+        DEFAULT_VISUAL_SETTINGS.trailLifetime,
+      );
+      expect(result.shared.simulationSpeed).toBe(
+        DEFAULT_PLAYBACK_SETTINGS.simulationSpeed,
+      );
+    });
+
+    it("falls back to the codec simulation for an invalid simulation name", () => {
+      setUrlSearch("simulation=unknown");
+
+      const result = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("lorenz");
+    });
   });
-});
 
-describe("setSettingsInUrl", () => {
-  beforeEach(() => {
-    window.history.replaceState({}, "", "/");
+  describe("setSimulationInUrl", () => {
+    it("serializes the Lorenz simulation and seed", () => {
+      const state = createState({
+        simulation: "lorenz",
+        seed: 12345,
+        settings: createRandomConfig(12345),
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("simulation")).toBe(null);
+      expect(params.get("seed")).toBe("12345");
+    });
+
+    it("omits simulation when using the codec's default simulation", () => {
+      const state = createState({
+        simulation: "lorenz",
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.has("simulation")).toBe(false);
+    });
+
+    it("omits seed zero", () => {
+      const state = createState({
+        seed: 0,
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.has("seed")).toBe(false);
+    });
+
+    it("serializes Lorenz values that differ from the seeded configuration", () => {
+      const seed = 12345;
+      const generated = createRandomConfig(seed);
+
+      const state = createState({
+        seed,
+        settings: {
+          ...generated,
+          sigma: 15,
+        },
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("seed")).toBe(String(seed));
+      expect(params.get("sigma")).toBe("15");
+    });
+
+    it("omits Lorenz values that match the seeded configuration", () => {
+      const seed = 12345;
+
+      const state = createState({
+        seed,
+        settings: createRandomConfig(seed),
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.has("sigma")).toBe(false);
+      expect(params.has("rho")).toBe(false);
+      expect(params.has("beta")).toBe(false);
+      expect(params.has("initialX")).toBe(false);
+      expect(params.has("initialY")).toBe(false);
+      expect(params.has("initialZ")).toBe(false);
+      expect(params.has("startingHue")).toBe(false);
+    });
+
+    it("serializes shared visual overrides", () => {
+      const state = createState({
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          background: "#ffffff",
+          glow: 175,
+          trailLifetime: 25,
+          palette: "rainbow",
+        },
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("background")).toBe("#ffffff");
+      expect(params.get("glow")).toBe("175");
+      expect(params.get("trailLifetime")).toBe("25");
+      expect(params.get("palette")).toBe("rainbow");
+    });
+
+    it("serializes shared playback overrides", () => {
+      const state = createState({
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          simulationSpeed: 1.5,
+          rainbowSpeed: 2.1,
+        },
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("simulationSpeed")).toBe("1.5");
+      expect(params.get("rainbowSpeed")).toBe("2.1");
+    });
+
+    it("does not serialize paused state", () => {
+      const state = createState({
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          paused: true,
+        },
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.has("paused")).toBe(false);
+    });
+
+    it("replaces browser history by default", () => {
+      const before = window.history.length;
+
+      const state = createState({
+        seed: 123,
+        settings: createRandomConfig(123),
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
+
+      expect(window.history.length).toBe(before);
+    });
+
+    it("pushes a new history entry when requested", () => {
+      const before = window.history.length;
+
+      const state = createState({
+        seed: 123,
+        settings: createRandomConfig(123),
+      });
+
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS, "push");
+
+      expect(window.history.length).toBe(before + 1);
+    });
   });
 
-  it("serialises explicit overrides", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
+  describe("getSimulationShareUrl", () => {
+    it("generates a URL without changing browser history", () => {
+      window.history.replaceState({}, "", "/existing?foo=bar");
 
-      seed: 123456,
+      const beforeUrl = window.location.href;
+      const beforeHistoryLength = window.history.length;
 
-      m1: 1.8,
+      const state = createState({
+        seed: 12345,
+        settings: createRandomConfig(12345),
+      });
 
-      gravity: 12,
+      const shareUrl = getSimulationShareUrl(state, lorenzCodec, DEFAULTS);
 
-      glow: 175,
+      expect(shareUrl).toContain("seed=12345");
+      expect(shareUrl).not.toContain("foo=bar");
 
-      palette: "solid" as const,
-    };
+      expect(window.location.href).toBe(beforeUrl);
+      expect(window.history.length).toBe(beforeHistoryLength);
+    });
 
-    setSettingsInUrl(settings, DEFAULT_SETTINGS);
+    it("includes explicit Lorenz overrides", () => {
+      const seed = 12345;
+      const generated = createRandomConfig(seed);
 
-    const params = new URLSearchParams(window.location.search);
+      const state = createState({
+        seed,
+        settings: {
+          ...generated,
+          rho: 30,
+          initialZ: 25,
+        },
+      });
 
-    expect(params.get("seed")).toBe("123456");
+      const shareUrl = getSimulationShareUrl(state, lorenzCodec, DEFAULTS);
 
-    expect(params.get("m1")).toBe("1.8");
+      const url = new URL(shareUrl);
 
-    expect(params.get("gravity")).toBe("12");
+      expect(url.searchParams.get("seed")).toBe("12345");
+      expect(url.searchParams.get("rho")).toBe("30");
+      expect(url.searchParams.get("initialZ")).toBe("25");
+    });
 
-    expect(params.get("glow")).toBe("175");
+    it("includes shared visual overrides", () => {
+      const state = createState({
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          background: "#112233",
+          glow: 150,
+        },
+      });
 
-    expect(params.get("palette")).toBe("solid");
+      const shareUrl = getSimulationShareUrl(state, lorenzCodec, DEFAULTS);
+
+      const url = new URL(shareUrl);
+
+      expect(url.searchParams.get("background")).toBe("#112233");
+      expect(url.searchParams.get("glow")).toBe("150");
+    });
   });
 
-  it("omits values that match the generated configuration", () => {
-    const seed = 123456;
+  describe("round trips", () => {
+    it("round-trips a seeded Lorenz configuration", () => {
+      const seed = 987654321;
+      const generated = createRandomConfig(seed);
 
-    const settings = createRandomConfig(seed, DEFAULT_SETTINGS);
+      const state = createState({
+        seed,
+        settings: generated,
+      });
 
-    setSettingsInUrl(settings, DEFAULT_SETTINGS);
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
 
-    const params = new URLSearchParams(window.location.search);
+      const loaded = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
-    expect(params.get("seed")).toBe(String(seed));
+      expect(loaded.simulation).toBe("lorenz");
+      expect(loaded.seed).toBe(seed);
 
-    expect(params.has("m1")).toBe(false);
+      expectLorenzSettingsEqual(loaded.settings, generated);
+    });
 
-    expect(params.has("m2")).toBe(false);
+    it("round-trips seeded settings with explicit overrides", () => {
+      const seed = 987654321;
+      const generated = createRandomConfig(seed);
 
-    expect(params.has("gravity")).toBe(false);
-  });
+      const settings: LorenzSettings = {
+        ...generated,
+        sigma: 12,
+        initialX: 1.5,
+        startingHue: 72,
+      };
 
-  it("replaces the current URL by default", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      background: "#123456",
-    };
+      const state = createState({
+        seed,
+        settings,
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          glow: 175,
+          palette: "rainbow",
+          simulationSpeed: 1.5,
+        },
+      });
 
-    setSettingsInUrl(settings, DEFAULT_SETTINGS);
+      setSimulationInUrl(state, lorenzCodec, DEFAULTS);
 
-    expect(window.location.search).toBe("?background=%23123456");
-  });
-});
+      const loaded = loadSimulationFromUrl(lorenzCodec, DEFAULTS);
 
-describe("URL round trips", () => {
-  beforeEach(() => {
-    window.history.replaceState({}, "", "/");
-  });
+      expect(loaded.seed).toBe(seed);
 
-  it("reconstructs the same configuration after serialisation", () => {
-    const seed = 987654321;
+      expectLorenzSettingsEqual(loaded.settings, settings);
 
-    const generated = createRandomConfig(seed, DEFAULT_SETTINGS);
-
-    const settings: ControlSettings = {
-      ...generated,
-
-      m1: 1.73,
-
-      gravity: 10.7,
-
-      glow: 181,
-
-      initialAngle1: 1.234,
-
-      background: "#112233",
-
-      palette: "gradient",
-
-      paused: true,
-    };
-
-    setSettingsInUrl(settings, DEFAULT_SETTINGS);
-
-    const restored = loadSettingsFromUrl(DEFAULT_SETTINGS);
-
-    expect(restored.seed).toBe(settings.seed);
-
-    expect(restored.m1).toBe(settings.m1);
-
-    expect(restored.gravity).toBe(settings.gravity);
-
-    expect(restored.glow).toBe(settings.glow);
-
-    expect(restored.initialAngle1).toBe(settings.initialAngle1);
-
-    expect(restored.background).toBe(settings.background);
-
-    expect(restored.palette).toBe(settings.palette);
-
-    expect(restored.paused).toBe(false);
-  });
-
-  it("produces a shareable URL without changing the current URL", () => {
-    const settings: ControlSettings = {
-      ...DEFAULT_SETTINGS,
-      seed: 123456,
-      m1: 1.8,
-    };
-
-    const before = window.location.href;
-
-    const shareUrl = getShareUrl(settings, DEFAULT_SETTINGS);
-
-    expect(shareUrl).toContain("seed=123456");
-
-    expect(shareUrl).toContain("m1=1.8");
-
-    expect(window.location.href).toBe(before);
+      expect(loaded.shared.background).toBe(DEFAULT_VISUAL_SETTINGS.background);
+      expect(loaded.shared.glow).toBe(175);
+      expect(loaded.shared.palette).toBe("rainbow");
+      expect(loaded.shared.simulationSpeed).toBe(1.5);
+      expect(loaded.shared.paused).toBe(false);
+    });
   });
 });

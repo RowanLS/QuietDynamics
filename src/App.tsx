@@ -1,43 +1,24 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { SimulationCanvas } from "./components/SimulationCanvas";
 import { ControlPanel } from "./components/ControlPanel";
-import { createRandomConfig, createSeed } from "./simulations/lorenz/randomise";
-
-import { loadSettingsFromUrl } from "./utils/urlState";
 import { LorenzControls } from "./components/LorenzControls";
-import type { ControlSettings } from "./types/settings";
+import { SimulationCanvas } from "./components/SimulationCanvas";
 
-import "./App.css";
-import type { VisualSettings, PlaybackSettings } from "./types/settings";
-import type { SimulationRuntimeSettings } from "./types/simulation";
-//import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
 import { createLorenzSimulation } from "./simulations/lorenz/LorenzSimulation";
+import { createRandomConfig, createSeed } from "./simulations/lorenz/randomise";
+import { createLorenzUrlCodec } from "./simulations/lorenz/url";
 import type { LorenzSettings } from "./simulations/lorenz/settings";
 
-const DEFAULT_SETTINGS: ControlSettings = {
-  seed: 42,
-  background: "#071018",
-  palette: "neon-rainbow",
-  startingHue: 200,
+import type { VisualSettings, PlaybackSettings } from "./types/settings";
+import type { SimulationRuntimeSettings } from "./types/simulation";
 
-  trailLifetime: 18,
-  glow: 100,
-  rainbowSpeed: 0.8,
-  simulationSpeed: 1,
-  m1: 1,
-  m2: 1.37,
-  l1: 1,
-  l2: 1,
-  gravity: 9.81,
+import {
+  getSimulationShareUrl,
+  loadSimulationFromUrl,
+  setSimulationInUrl,
+} from "./utils/urlState";
 
-  initialAngle1: 2.6,
-  initialAngle2: -0.9,
-
-  initialOmega1: 0,
-  initialOmega2: 0,
-  paused: false,
-};
+import "./App.css";
 
 const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
   sigma: 10,
@@ -49,12 +30,72 @@ const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
   startingHue: 200,
 };
 
+const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
+  background: "#071018",
+  palette: "neon-rainbow",
+  trailLifetime: 18,
+  glow: 100,
+  rainbowSpeed: 0.8,
+};
+
+const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
+  simulationSpeed: 1,
+  paused: false,
+};
+
+const LORENZ_URL_CODEC = createLorenzUrlCodec(
+  createRandomConfig,
+  DEFAULT_LORENZ_SETTINGS,
+);
+
+const DEFAULT_URL_STATE = {
+  visual: DEFAULT_VISUAL_SETTINGS,
+  playback: DEFAULT_PLAYBACK_SETTINGS,
+};
+
 const UI_HIDE_DELAY = 4000;
 
 function App() {
-  const [settings, setSettings] = useState<ControlSettings>(() =>
-    loadSettingsFromUrl(DEFAULT_SETTINGS),
+  /*
+   * Load the complete initial Lorenz configuration once.
+   *
+   * This gives us a single consistent source for:
+   * - seed
+   * - Lorenz settings
+   * - shared visual settings
+   * - shared playback settings
+   */
+  const [initialUrlState] = useState(() => {
+    const state = loadSimulationFromUrl(LORENZ_URL_CODEC, DEFAULT_URL_STATE);
+
+    return state.simulation === "lorenz"
+      ? state
+      : {
+          ...state,
+          simulation: "lorenz" as const,
+          seed: 0,
+          settings: { ...DEFAULT_LORENZ_SETTINGS },
+          shared: {
+            ...DEFAULT_VISUAL_SETTINGS,
+            ...DEFAULT_PLAYBACK_SETTINGS,
+          },
+        };
+  });
+
+  const [lorenzSettings, setLorenzSettings] = useState<LorenzSettings>(
+    initialUrlState.settings,
   );
+
+  const [seed, setSeed] = useState(initialUrlState.seed);
+
+  const [visualSettings, setVisualSettings] = useState<VisualSettings>({
+    ...initialUrlState.shared,
+  });
+
+  const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>({
+    simulationSpeed: initialUrlState.shared.simulationSpeed,
+    paused: false,
+  });
 
   const [controlsOpen, setControlsOpen] = useState(false);
 
@@ -64,54 +105,142 @@ function App() {
 
   const hideTimerRef = useRef<number | null>(null);
 
-  const visualSettings: VisualSettings = {
-    background: settings.background,
-    palette: settings.palette,
-    trailLifetime: settings.trailLifetime,
-    glow: settings.glow,
-    rainbowSpeed: settings.rainbowSpeed,
-  };
-
-  const playbackSettings: PlaybackSettings = {
-    simulationSpeed: settings.simulationSpeed,
-    paused: settings.paused,
-  };
-
-  const [lorenzSettings, setLorenzSettings] = useState<LorenzSettings>(
-    DEFAULT_LORENZ_SETTINGS,
-  );
-
+  /*
+   * The simulation reads this ref from an imperative animation loop,
+   * so it must always contain the latest Lorenz configuration.
+   */
   const lorenzSettingsRef = useRef(lorenzSettings);
 
   useEffect(() => {
     lorenzSettingsRef.current = lorenzSettings;
   }, [lorenzSettings]);
 
+  /*
+   * Construct the common runtime settings required by SimulationCanvas.
+   */
+  const runtimeSettings: SimulationRuntimeSettings = {
+    simulationSpeed: playbackSettings.simulationSpeed,
+    paused: playbackSettings.paused,
+    rainbowSpeed: visualSettings.rainbowSpeed,
+    palette: visualSettings.palette,
+    trailLifetime: visualSettings.trailLifetime,
+    glow: visualSettings.glow,
+  };
+
+  /*
+   * Create a fresh simulation instance for the Canvas host.
+   *
+   * The Lorenz configuration comes from the ref so the simulation always
+   * reads the latest values without rebuilding the Canvas effect.
+   */
   const createLorenz = useCallback(
-    (getRuntime: () => SimulationRuntimeSettings) =>
-      createLorenzSimulation(() => lorenzSettingsRef.current, getRuntime),
+    (getRuntimeSettings: () => SimulationRuntimeSettings) =>
+      createLorenzSimulation(
+        () => lorenzSettingsRef.current,
+        getRuntimeSettings,
+      ),
     [],
   );
 
+  /**
+   * Update a shared visual setting and replace the current URL state.
+   */
   const updateVisualSettings = (updates: Partial<VisualSettings>): void => {
-    setSettings((current) => ({
-      ...current,
+    const nextVisualSettings: VisualSettings = {
+      ...visualSettings,
       ...updates,
-    }));
+    };
+
+    const shared = {
+      ...nextVisualSettings,
+      ...playbackSettings,
+    };
+
+    const nextState = {
+      simulation: "lorenz" as const,
+      seed,
+      settings: lorenzSettings,
+      shared,
+    };
+
+    setVisualSettings(nextVisualSettings);
+
+    setSimulationInUrl(
+      nextState,
+      LORENZ_URL_CODEC,
+      DEFAULT_URL_STATE,
+      "replace",
+    );
   };
 
-  const updatePlaybackSettings = (updates: Partial<PlaybackSettings>): void => {
-    setSettings((current) => ({
-      ...current,
-      ...updates,
-    }));
-  };
+  /**
+   * Update playback state and replace the current URL state.
+   *
+   * `paused` itself is intentionally not serialised by the URL layer.
+   */
+  const updatePlaybackSettings = useCallback(
+    (updates: Partial<PlaybackSettings>): void => {
+      const nextPlaybackSettings: PlaybackSettings = {
+        ...playbackSettings,
+        ...updates,
+      };
 
+      const shared = {
+        ...visualSettings,
+        ...nextPlaybackSettings,
+      };
+
+      const nextState = {
+        simulation: "lorenz" as const,
+        seed,
+        settings: lorenzSettings,
+        shared,
+      };
+
+      setPlaybackSettings(nextPlaybackSettings);
+
+      setSimulationInUrl(
+        nextState,
+        LORENZ_URL_CODEC,
+        DEFAULT_URL_STATE,
+        "replace",
+      );
+    },
+    [playbackSettings, visualSettings, seed, lorenzSettings],
+  );
+
+  /**
+   * Update Lorenz-specific settings and replace the current URL state.
+   *
+   * Changing an initial condition creates a new starting state, so the
+   * simulation is explicitly reset.
+   */
   const updateLorenzSettings = (updates: Partial<LorenzSettings>): void => {
-    setLorenzSettings((current) => ({
-      ...current,
+    const nextLorenzSettings: LorenzSettings = {
+      ...lorenzSettings,
       ...updates,
-    }));
+    };
+
+    const shared = {
+      ...visualSettings,
+      ...playbackSettings,
+    };
+
+    const nextState = {
+      simulation: "lorenz" as const,
+      seed,
+      settings: nextLorenzSettings,
+      shared,
+    };
+
+    setLorenzSettings(nextLorenzSettings);
+
+    setSimulationInUrl(
+      nextState,
+      LORENZ_URL_CODEC,
+      DEFAULT_URL_STATE,
+      "replace",
+    );
 
     if (
       updates.initialX !== undefined ||
@@ -142,28 +271,63 @@ function App() {
     }
   };
 
+  const handleTogglePause = useCallback((): void => {
+    updatePlaybackSettings({
+      paused: !playbackSettings.paused,
+    });
+  }, [playbackSettings.paused, updatePlaybackSettings]);
+  /**
+   * Generate a new deterministic Lorenz configuration and push it into
+   * browser history as a new configuration.
+   */
   const handleRandomise = useCallback((): void => {
-    const seed = createSeed();
-    const nextLorenzSettings = createRandomConfig(seed);
+    const nextSeed = createSeed();
+    const nextLorenzSettings = createRandomConfig(nextSeed);
 
+    const shared = {
+      ...visualSettings,
+      ...playbackSettings,
+    };
+
+    const nextState = {
+      simulation: "lorenz" as const,
+      seed: nextSeed,
+      settings: nextLorenzSettings,
+      shared,
+    };
+
+    setSeed(nextSeed);
     setLorenzSettings(nextLorenzSettings);
-
-    /*
-     * Keep the application seed in sync with the generated Lorenz
-     * configuration. The seed currently remains part of the existing
-     * application settings while simulation-specific URL state is being
-     * redesigned.
-     */
-    setSettings((current) => ({
-      ...current,
-      seed,
-    }));
-
-    /*
-     * Randomisation represents a new simulation state.
-     */
     setResetVersion((version) => version + 1);
-  }, []);
+
+    setSimulationInUrl(nextState, LORENZ_URL_CODEC, DEFAULT_URL_STATE, "push");
+  }, [playbackSettings, visualSettings]);
+
+  const handleCopyLink = async (): Promise<void> => {
+    try {
+      const shared = {
+        ...visualSettings,
+        ...playbackSettings,
+      };
+
+      const state = {
+        simulation: "lorenz" as const,
+        seed,
+        settings: lorenzSettings,
+        shared,
+      };
+
+      const url = getSimulationShareUrl(
+        state,
+        LORENZ_URL_CODEC,
+        DEFAULT_URL_STATE,
+      );
+
+      await navigator.clipboard.writeText(url);
+    } catch (error) {
+      console.error("Unable to copy share URL.", error);
+    }
+  };
 
   const revealUi = useCallback(() => {
     setUiVisible(true);
@@ -195,20 +359,15 @@ function App() {
   }, [controlsOpen, clearHideTimer]);
 
   useEffect(() => {
-    const handleActivity = () => {
+    const handleActivity = (): void => {
       revealUi();
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
       revealUi();
 
       if (event.key === "Escape" && controlsOpen) {
         setControlsOpen(false);
-        return;
-      }
-
-      if (event.key.toLowerCase() === "r") {
-        handleRandomise();
         return;
       }
 
@@ -223,6 +382,11 @@ function App() {
         return;
       }
 
+      if (event.key.toLowerCase() === "r") {
+        handleRandomise();
+        return;
+      }
+
       if (event.key.toLowerCase() === "f") {
         void handleFullscreen();
         return;
@@ -230,17 +394,17 @@ function App() {
 
       if (event.code === "Space") {
         event.preventDefault();
-
-        setSettings((current) => ({
-          ...current,
-          paused: !current.paused,
-        }));
+        handleTogglePause();
       }
     };
 
-    window.addEventListener("pointermove", handleActivity, { passive: true });
+    window.addEventListener("pointermove", handleActivity, {
+      passive: true,
+    });
 
-    window.addEventListener("pointerdown", handleActivity, { passive: true });
+    window.addEventListener("pointerdown", handleActivity, {
+      passive: true,
+    });
 
     window.addEventListener("keydown", handleKeyDown);
 
@@ -251,7 +415,7 @@ function App() {
 
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [controlsOpen, revealUi, handleRandomise]);
+  }, [controlsOpen, handleRandomise, handleTogglePause, revealUi]);
 
   useEffect(() => {
     return () => {
@@ -263,7 +427,7 @@ function App() {
     <main
       className="app"
       style={{
-        backgroundColor: settings.background,
+        backgroundColor: visualSettings.background,
       }}
       onDoubleClick={(event) => {
         /*
@@ -280,13 +444,7 @@ function App() {
       }}
     >
       <SimulationCanvas
-        runtimeSettings={{
-          ...playbackSettings,
-          rainbowSpeed: visualSettings.rainbowSpeed,
-          palette: visualSettings.palette,
-          trailLifetime: visualSettings.trailLifetime,
-          glow: visualSettings.glow,
-        }}
+        runtimeSettings={runtimeSettings}
         resetVersion={resetVersion}
         createSimulation={createLorenz}
       />
@@ -334,6 +492,8 @@ function App() {
                 setResetVersion((version) => version + 1);
               }}
               onFullscreen={handleFullscreen}
+              onCopyLink={handleCopyLink}
+              seed={seed}
             >
               <LorenzControls
                 settings={lorenzSettings}
