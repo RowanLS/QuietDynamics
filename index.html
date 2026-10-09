@@ -1,6 +1,30 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      /*
+       * Restore the original SPA route after GitHub Pages redirects
+       * through index.html.
+       */
+      (function (location) {
+        if (location.search.startsWith("?/")) {
+          const restored = location.search.slice(2).replace(/~and~/g, "&");
+
+          const separator = restored.indexOf("?");
+
+          const route =
+            separator === -1 ? restored : restored.slice(0, separator);
+
+          const query = separator === -1 ? "" : restored.slice(separator);
+
+          window.history.replaceState(
+            null,
+            "",
+            location.pathname + route + query + location.hash,
+          );
+        }
+      })(window.location);
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
