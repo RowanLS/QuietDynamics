@@ -1,0 +1,209 @@
+.landing-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: clamp(2rem, 6vw, 5rem);
+  overflow-x: hidden;
+
+  color: #f4f7fa;
+  background:
+    radial-gradient(circle at 50% -10%, rgb(31 70 92 / 32%), transparent 40%),
+    #071018;
+}
+
+.landing-header {
+  width: min(100%, 52rem);
+  margin: 0 auto clamp(3rem, 7vw, 5rem);
+  text-align: center;
+}
+
+.landing-eyebrow {
+  margin: 0 0 1rem;
+
+  color: rgb(190 224 240 / 72%);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.landing-header h1 {
+  margin: 0;
+
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.landing-introduction {
+  width: min(100%, 38rem);
+  margin: 1.5rem auto 0;
+
+  color: rgb(225 235 240 / 68%);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.7;
+}
+
+.simulation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+
+  width: min(100%, 70rem);
+  margin: 0 auto;
+}
+
+.simulation-card {
+  overflow: hidden;
+
+  color: inherit;
+  text-decoration: none;
+
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 1.25rem;
+
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.simulation-card:hover {
+  transform: translateY(-3px);
+
+  background: rgb(255 255 255 / 5%);
+  border-color: rgb(255 255 255 / 18%);
+}
+
+.simulation-card:focus-visible {
+  outline: 2px solid rgb(175 225 255 / 90%);
+  outline-offset: 4px;
+}
+
+.simulation-preview {
+  position: relative;
+
+  display: grid;
+  place-items: center;
+
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+
+  background-color: #04090d;
+  border-bottom: 1px solid rgb(255 255 255 / 7%);
+}
+
+.simulation-preview::before,
+.simulation-preview::after,
+.simulation-preview-glow {
+  position: absolute;
+  content: "";
+}
+
+/*
+   * Lightweight visual suggestion of a double-pendulum trajectory.
+   * This is decorative only; it is not a simulation.
+   */
+.simulation-preview-double-pendulum::before {
+  width: 42%;
+  height: 42%;
+
+  border: 1px solid rgb(90 225 255 / 65%);
+  border-radius: 50% 45% 55% 40%;
+
+  box-shadow:
+    0 0 12px rgb(70 210 255 / 32%),
+    0 0 35px rgb(70 210 255 / 15%);
+
+  transform: rotate(-24deg) scaleX(1.5);
+}
+
+.simulation-preview-double-pendulum::after {
+  width: 34%;
+  height: 54%;
+
+  border: 1px solid rgb(255 90 220 / 55%);
+  border-radius: 45% 55% 40% 60%;
+
+  box-shadow:
+    0 0 12px rgb(255 90 220 / 25%),
+    0 0 30px rgb(255 90 220 / 12%);
+
+  transform: translate(24%, 5%) rotate(35deg);
+}
+
+/*
+   * Lightweight visual suggestion of the two Lorenz lobes.
+   */
+.simulation-preview-lorenz::before,
+.simulation-preview-lorenz::after {
+  width: 31%;
+  aspect-ratio: 1;
+
+  border: 1px solid rgb(100 225 255 / 65%);
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 12px rgb(80 215 255 / 30%),
+    0 0 35px rgb(80 215 255 / 12%);
+}
+
+.simulation-preview-lorenz::before {
+  transform: translateX(-42%) rotate(-18deg) scaleY(1.3);
+}
+
+.simulation-preview-lorenz::after {
+  transform: translateX(42%) rotate(18deg) scaleY(1.3);
+
+  border-color: rgb(255 105 220 / 60%);
+
+  box-shadow:
+    0 0 12px rgb(255 90 220 / 25%),
+    0 0 35px rgb(255 90 220 / 12%);
+}
+
+.simulation-preview-glow {
+  width: 45%;
+  aspect-ratio: 1;
+
+  background: rgb(65 190 255 / 12%);
+  border-radius: 50%;
+  filter: blur(2.5rem);
+}
+
+.simulation-card-content {
+  padding: 1.4rem 1.5rem 1.5rem;
+}
+
+.simulation-card-content h2 {
+  margin: 0;
+
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.simulation-card-content p {
+  min-height: 3.2em;
+  margin: 0.65rem 0 1.25rem;
+
+  color: rgb(225 235 240 / 62%);
+  line-height: 1.6;
+}
+
+.simulation-card-action {
+  color: rgb(190 225 240 / 85%);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simulation-card {
+    transition: none;
+  }
+
+  .simulation-card:hover {
+    transform: none;
+  }
+}

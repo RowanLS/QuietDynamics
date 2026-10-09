@@ -14,7 +14,9 @@ import type {
   PlaybackSettings,
 } from "../types/settings";
 
-export type SimulationName = "double-pendulum" | "lorenz";
+import type { SimulationName } from "../types/simulationName";
+
+export type { SimulationName } from "../types/simulationName";
 
 const MAX_UINT32 = 0xffffffff;
 

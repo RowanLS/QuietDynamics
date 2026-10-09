@@ -5,13 +5,14 @@ import {
   RouterProvider,
   createBrowserRouter,
 } from "react-router-dom";
+import { LandingPage } from "./pages/LandingPage";
 
 import App from "./App";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/double-pendulum" replace />,
+    element: <LandingPage />,
   },
   {
     path: "/double-pendulum",
@@ -23,7 +24,7 @@ const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <Navigate to="/double-pendulum" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);
 
