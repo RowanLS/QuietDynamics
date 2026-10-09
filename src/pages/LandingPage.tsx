@@ -31,11 +31,12 @@ export function LandingPage() {
             to={simulation.path}
             className="simulation-card"
           >
-            <div
-              className={`simulation-preview simulation-preview-${simulation.id}`}
-              aria-hidden="true"
-            >
-              <div className="simulation-preview-glow" />
+            <div className="simulation-preview">
+              <img
+                src={simulation.preview}
+                alt=""
+                className="simulation-preview-image"
+              />
             </div>
 
             <div className="simulation-card-content">
