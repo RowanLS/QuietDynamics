@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { SimulationPage } from "./components/SimulationPage";
 import { DoublePendulumControls } from "./components/DoublePendulumControls";
 import { LorenzControls } from "./components/LorenzControls";
+import { PendulumWaveControls } from "./components/PendulumWaveControls";
+import { SimulationPage } from "./components/SimulationPage";
 
-import { createRandomConfig as createDoublePendulumRandomConfig } from "./simulations/doublePendulum/randomise";
-import { createSeed } from "./utils/seed";
 import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
+import { createRandomConfig as createDoublePendulumRandomConfig } from "./simulations/doublePendulum/randomise";
 import { createDoublePendulumUrlCodec } from "./simulations/doublePendulum/url";
 
-import { createRandomConfig as createLorenzRandomConfig } from "./simulations/lorenz/randomise";
 import { createLorenzSimulation } from "./simulations/lorenz/LorenzSimulation";
+import { createRandomConfig as createLorenzRandomConfig } from "./simulations/lorenz/randomise";
+import type { LorenzSettings } from "./simulations/lorenz/settings";
 import { createLorenzUrlCodec } from "./simulations/lorenz/url";
 
-import type { LorenzSettings } from "./simulations/lorenz/settings";
+import { createPendulumWaveSimulation } from "./simulations/pendulumWave/PendulumWaveSimulation";
+import { createRandomConfig as createPendulumWaveRandomConfig } from "./simulations/pendulumWave/randomise";
+import type { PendulumWaveSettings } from "./simulations/pendulumWave/settings";
+import { createPendulumWaveUrlCodec } from "./simulations/pendulumWave/url";
 
 import type {
   ControlSettings,
-  VisualSettings,
   PlaybackSettings,
+  VisualSettings,
 } from "./types/settings";
-
 import type { Simulation, SimulationRuntimeSettings } from "./types/simulation";
 
+import { createSeed } from "./utils/seed";
 import {
   getSimulationShareUrl,
   loadSimulationFromUrl,
@@ -35,6 +39,7 @@ import {
 import "./App.css";
 
 // DEFAULT SETTINGS
+
 const DEFAULT_DOUBLE_PENDULUM_SETTINGS: ControlSettings = {
   seed: 42,
   background: "#071018",
@@ -71,6 +76,14 @@ const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
   startingHue: 200,
 };
 
+const DEFAULT_PENDULUM_WAVE_SETTINGS: PendulumWaveSettings = {
+  pendulumCount: 30,
+  baseOscillations: 24,
+  wavePeriod: 90,
+  amplitude: 0.35,
+  startingHue: 200,
+};
+
 const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   background: "#071018",
   palette: "neon-rainbow",
@@ -101,7 +114,13 @@ const LORENZ_URL_CODEC = createLorenzUrlCodec(
   DEFAULT_LORENZ_SETTINGS,
 );
 
-// INITIAL STATE LOADER
+const PENDULUM_WAVE_URL_CODEC = createPendulumWaveUrlCodec(
+  createPendulumWaveRandomConfig,
+  DEFAULT_PENDULUM_WAVE_SETTINGS,
+);
+
+// INITIAL STATE
+
 interface InitialAppState {
   simulation: SimulationName;
   seed: number;
@@ -109,49 +128,85 @@ interface InitialAppState {
   playbackSettings: PlaybackSettings;
   doublePendulumSettings: ControlSettings;
   lorenzSettings: LorenzSettings;
+  pendulumWaveSettings: PendulumWaveSettings;
 }
 
-function loadInitialAppState(simulation: SimulationName): InitialAppState {
-  if (simulation === "lorenz") {
-    const loaded = loadSimulationFromUrl(LORENZ_URL_CODEC, DEFAULT_URL_STATE);
-
-    return {
-      simulation,
-      seed: loaded.seed,
-      visualSettings: {
-        ...loaded.shared,
-      },
-      playbackSettings: {
-        simulationSpeed: loaded.shared.simulationSpeed,
-        paused: false,
-      },
-      doublePendulumSettings: {
-        ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
-      },
-      lorenzSettings: loaded.settings,
-    };
-  }
-
-  const loaded = loadSimulationFromUrl(
-    DOUBLE_PENDULUM_URL_CODEC,
-    DEFAULT_URL_STATE,
-  );
-
+function createSharedInitialState(loaded: {
+  seed: number;
+  shared: VisualSettings & PlaybackSettings;
+}): Pick<InitialAppState, "seed" | "visualSettings" | "playbackSettings"> {
   return {
-    simulation,
     seed: loaded.seed,
     visualSettings: {
-      ...loaded.shared,
+      background: loaded.shared.background,
+      palette: loaded.shared.palette,
+      trailLifetime: loaded.shared.trailLifetime,
+      glow: loaded.shared.glow,
+      rainbowSpeed: loaded.shared.rainbowSpeed,
     },
     playbackSettings: {
       simulationSpeed: loaded.shared.simulationSpeed,
       paused: false,
     },
-    doublePendulumSettings: loaded.settings,
-    lorenzSettings: {
-      ...DEFAULT_LORENZ_SETTINGS,
-    },
   };
+}
+
+function loadInitialAppState(simulation: SimulationName): InitialAppState {
+  switch (simulation) {
+    case "double-pendulum": {
+      const loaded = loadSimulationFromUrl(
+        DOUBLE_PENDULUM_URL_CODEC,
+        DEFAULT_URL_STATE,
+      );
+
+      return {
+        simulation,
+        ...createSharedInitialState(loaded),
+        doublePendulumSettings: loaded.settings,
+        lorenzSettings: {
+          ...DEFAULT_LORENZ_SETTINGS,
+        },
+        pendulumWaveSettings: {
+          ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+        },
+      };
+    }
+
+    case "lorenz": {
+      const loaded = loadSimulationFromUrl(LORENZ_URL_CODEC, DEFAULT_URL_STATE);
+
+      return {
+        simulation,
+        ...createSharedInitialState(loaded),
+        doublePendulumSettings: {
+          ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        },
+        lorenzSettings: loaded.settings,
+        pendulumWaveSettings: {
+          ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+        },
+      };
+    }
+
+    case "pendulum-wave": {
+      const loaded = loadSimulationFromUrl(
+        PENDULUM_WAVE_URL_CODEC,
+        DEFAULT_URL_STATE,
+      );
+
+      return {
+        simulation,
+        ...createSharedInitialState(loaded),
+        doublePendulumSettings: {
+          ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        },
+        lorenzSettings: {
+          ...DEFAULT_LORENZ_SETTINGS,
+        },
+        pendulumWaveSettings: loaded.settings,
+      };
+    }
+  }
 }
 
 interface AppProps {
@@ -159,7 +214,8 @@ interface AppProps {
 }
 
 function App({ simulationName }: AppProps) {
-  // CREATE STATES
+  // SHARED STATE
+
   const [initialState] = useState(() => loadInitialAppState(simulationName));
 
   const [seed, setSeed] = useState(initialState.seed);
@@ -172,29 +228,19 @@ function App({ simulationName }: AppProps) {
     initialState.playbackSettings,
   );
 
+  const [resetVersion, setResetVersion] = useState(0);
+
+  // DOUBLE PENDULUM
+
   const [doublePendulumSettings, setDoublePendulumSettings] =
     useState<ControlSettings>(initialState.doublePendulumSettings);
 
-  const [lorenzSettings, setLorenzSettings] = useState<LorenzSettings>(
-    initialState.lorenzSettings,
-  );
-
-  const [resetVersion, setResetVersion] = useState(0);
-
-  // CREATE REFS
   const doublePendulumSettingsRef = useRef(doublePendulumSettings);
-
-  const lorenzSettingsRef = useRef(lorenzSettings);
 
   useEffect(() => {
     doublePendulumSettingsRef.current = doublePendulumSettings;
   }, [doublePendulumSettings]);
 
-  useEffect(() => {
-    lorenzSettingsRef.current = lorenzSettings;
-  }, [lorenzSettings]);
-
-  // STABLE FACTORIES FOR SIMULATIONS
   const createDoublePendulum = useCallback(
     (getRuntimeSettings: () => SimulationRuntimeSettings): Simulation =>
       createDoublePendulumSimulation(
@@ -203,6 +249,18 @@ function App({ simulationName }: AppProps) {
       ),
     [],
   );
+
+  // LORENZ ATTRACTOR
+
+  const [lorenzSettings, setLorenzSettings] = useState<LorenzSettings>(
+    initialState.lorenzSettings,
+  );
+
+  const lorenzSettingsRef = useRef(lorenzSettings);
+
+  useEffect(() => {
+    lorenzSettingsRef.current = lorenzSettings;
+  }, [lorenzSettings]);
 
   const createLorenz = useCallback(
     (getRuntimeSettings: () => SimulationRuntimeSettings): Simulation =>
@@ -213,53 +271,136 @@ function App({ simulationName }: AppProps) {
     [],
   );
 
-  const createActiveSimulation = useCallback(
+  // PENDULUM WAVE
+
+  const [pendulumWaveSettings, setPendulumWaveSettings] =
+    useState<PendulumWaveSettings>(initialState.pendulumWaveSettings);
+
+  const pendulumWaveSettingsRef = useRef(pendulumWaveSettings);
+
+  useEffect(() => {
+    pendulumWaveSettingsRef.current = pendulumWaveSettings;
+  }, [pendulumWaveSettings]);
+
+  const createPendulumWave = useCallback(
     (getRuntimeSettings: () => SimulationRuntimeSettings): Simulation =>
-      simulationName === "lorenz"
-        ? createLorenz(getRuntimeSettings)
-        : createDoublePendulum(getRuntimeSettings),
-    [createDoublePendulum, createLorenz, simulationName],
+      createPendulumWaveSimulation(
+        () => pendulumWaveSettingsRef.current,
+        getRuntimeSettings,
+      ),
+    [],
   );
 
-  // SETTINGS HANDLERS
-  const updateVisualSettings = (updates: Partial<VisualSettings>): void => {
-    const nextVisualSettings = {
-      ...visualSettings,
-      ...updates,
-    };
+  // ACTIVE SIMULATION
 
-    setVisualSettings(nextVisualSettings);
+  const createActiveSimulation = useCallback(
+    (getRuntimeSettings: () => SimulationRuntimeSettings): Simulation => {
+      switch (simulationName) {
+        case "double-pendulum":
+          return createDoublePendulum(getRuntimeSettings);
 
-    const shared = {
-      ...nextVisualSettings,
-      ...playbackSettings,
-    };
+        case "lorenz":
+          return createLorenz(getRuntimeSettings);
 
-    if (simulationName === "lorenz") {
-      const state: SimulationUrlState<LorenzSettings> = {
-        simulation: "lorenz",
-        seed,
-        settings: lorenzSettings,
-        shared,
+        case "pendulum-wave":
+          return createPendulumWave(getRuntimeSettings);
+      }
+    },
+    [createDoublePendulum, createLorenz, createPendulumWave, simulationName],
+  );
+
+  // SHARED URL SERIALISATION
+
+  const writeSharedSettingsToUrl = useCallback(
+    (
+      nextVisualSettings: VisualSettings,
+      nextPlaybackSettings: PlaybackSettings,
+    ): void => {
+      const shared = {
+        ...nextVisualSettings,
+        ...nextPlaybackSettings,
       };
 
-      setSimulationInUrl(state, LORENZ_URL_CODEC, DEFAULT_URL_STATE, "replace");
-    } else {
-      const state: SimulationUrlState<ControlSettings> = {
-        simulation: "double-pendulum",
-        seed,
-        settings: doublePendulumSettings,
-        shared,
+      switch (simulationName) {
+        case "double-pendulum": {
+          const state: SimulationUrlState<ControlSettings> = {
+            simulation: "double-pendulum",
+            seed,
+            settings: doublePendulumSettings,
+            shared,
+          };
+
+          setSimulationInUrl(
+            state,
+            DOUBLE_PENDULUM_URL_CODEC,
+            DEFAULT_URL_STATE,
+            "replace",
+          );
+
+          return;
+        }
+
+        case "lorenz": {
+          const state: SimulationUrlState<LorenzSettings> = {
+            simulation: "lorenz",
+            seed,
+            settings: lorenzSettings,
+            shared,
+          };
+
+          setSimulationInUrl(
+            state,
+            LORENZ_URL_CODEC,
+            DEFAULT_URL_STATE,
+            "replace",
+          );
+
+          return;
+        }
+
+        case "pendulum-wave": {
+          const state: SimulationUrlState<PendulumWaveSettings> = {
+            simulation: "pendulum-wave",
+            seed,
+            settings: pendulumWaveSettings,
+            shared,
+          };
+
+          setSimulationInUrl(
+            state,
+            PENDULUM_WAVE_URL_CODEC,
+            DEFAULT_URL_STATE,
+            "replace",
+          );
+
+          return;
+        }
+      }
+    },
+    [
+      doublePendulumSettings,
+      lorenzSettings,
+      pendulumWaveSettings,
+      seed,
+      simulationName,
+    ],
+  );
+
+  // SHARED SETTINGS HANDLERS
+
+  const updateVisualSettings = useCallback(
+    (updates: Partial<VisualSettings>): void => {
+      const nextVisualSettings = {
+        ...visualSettings,
+        ...updates,
       };
 
-      setSimulationInUrl(
-        state,
-        DOUBLE_PENDULUM_URL_CODEC,
-        DEFAULT_URL_STATE,
-        "replace",
-      );
-    }
-  };
+      setVisualSettings(nextVisualSettings);
+
+      writeSharedSettingsToUrl(nextVisualSettings, playbackSettings);
+    },
+    [playbackSettings, visualSettings, writeSharedSettingsToUrl],
+  );
 
   const updatePlaybackSettings = useCallback(
     (updates: Partial<PlaybackSettings>): void => {
@@ -270,94 +411,27 @@ function App({ simulationName }: AppProps) {
 
       setPlaybackSettings(nextPlaybackSettings);
 
-      const shared = {
-        ...visualSettings,
-        ...nextPlaybackSettings,
-      };
-
-      if (simulationName === "lorenz") {
-        const state: SimulationUrlState<LorenzSettings> = {
-          simulation: "lorenz",
-          seed,
-          settings: lorenzSettings,
-          shared,
-        };
-
-        setSimulationInUrl(
-          state,
-          LORENZ_URL_CODEC,
-          DEFAULT_URL_STATE,
-          "replace",
-        );
-      } else {
-        const state: SimulationUrlState<ControlSettings> = {
-          simulation: "double-pendulum",
-          seed,
-          settings: doublePendulumSettings,
-          shared,
-        };
-
-        setSimulationInUrl(
-          state,
-          DOUBLE_PENDULUM_URL_CODEC,
-          DEFAULT_URL_STATE,
-          "replace",
-        );
-      }
+      writeSharedSettingsToUrl(visualSettings, nextPlaybackSettings);
     },
-    [
-      doublePendulumSettings,
-      lorenzSettings,
-      playbackSettings,
-      seed,
-      simulationName,
-      visualSettings,
-    ],
+    [playbackSettings, visualSettings, writeSharedSettingsToUrl],
   );
 
-  const updateLorenzSettings = (updates: Partial<LorenzSettings>): void => {
-    const nextLorenzSettings = {
-      ...lorenzSettings,
-      ...updates,
-    };
-
-    setLorenzSettings(nextLorenzSettings);
-
-    const state: SimulationUrlState<LorenzSettings> = {
-      simulation: "lorenz",
-      seed,
-      settings: nextLorenzSettings,
-      shared: {
-        ...visualSettings,
-        ...playbackSettings,
-      },
-    };
-
-    setSimulationInUrl(state, LORENZ_URL_CODEC, DEFAULT_URL_STATE, "replace");
-
-    if (
-      updates.initialX !== undefined ||
-      updates.initialY !== undefined ||
-      updates.initialZ !== undefined
-    ) {
-      setResetVersion((version) => version + 1);
-    }
-  };
+  // SIMULATION-SPECIFIC SETTINGS
 
   const updateDoublePendulumSettings = (
     updates: Partial<ControlSettings>,
   ): void => {
-    const nextDoublePendulumSettings = {
+    const nextSettings = {
       ...doublePendulumSettings,
       ...updates,
     };
 
-    setDoublePendulumSettings(nextDoublePendulumSettings);
+    setDoublePendulumSettings(nextSettings);
 
     const state: SimulationUrlState<ControlSettings> = {
       simulation: "double-pendulum",
       seed,
-      settings: nextDoublePendulumSettings,
+      settings: nextSettings,
       shared: {
         ...visualSettings,
         ...playbackSettings,
@@ -381,7 +455,71 @@ function App({ simulationName }: AppProps) {
     }
   };
 
-  // ACTIVITY HANDLERS
+  const updateLorenzSettings = (updates: Partial<LorenzSettings>): void => {
+    const nextSettings = {
+      ...lorenzSettings,
+      ...updates,
+    };
+
+    setLorenzSettings(nextSettings);
+
+    const state: SimulationUrlState<LorenzSettings> = {
+      simulation: "lorenz",
+      seed,
+      settings: nextSettings,
+      shared: {
+        ...visualSettings,
+        ...playbackSettings,
+      },
+    };
+
+    setSimulationInUrl(state, LORENZ_URL_CODEC, DEFAULT_URL_STATE, "replace");
+
+    if (
+      updates.initialX !== undefined ||
+      updates.initialY !== undefined ||
+      updates.initialZ !== undefined
+    ) {
+      setResetVersion((version) => version + 1);
+    }
+  };
+
+  const updatePendulumWaveSettings = (
+    updates: Partial<PendulumWaveSettings>,
+  ): void => {
+    const nextSettings = {
+      ...pendulumWaveSettings,
+      ...updates,
+    };
+
+    setPendulumWaveSettings(nextSettings);
+
+    const state: SimulationUrlState<PendulumWaveSettings> = {
+      simulation: "pendulum-wave",
+      seed,
+      settings: nextSettings,
+      shared: {
+        ...visualSettings,
+        ...playbackSettings,
+      },
+    };
+
+    setSimulationInUrl(
+      state,
+      PENDULUM_WAVE_URL_CODEC,
+      DEFAULT_URL_STATE,
+      "replace",
+    );
+
+    /*
+     * Every exposed Pendulum Wave parameter changes the mathematical
+     * configuration, so restart the wave from its aligned state.
+     */
+    setResetVersion((version) => version + 1);
+  };
+
+  // COPY LINK
+
   const handleCopyLink = async (): Promise<void> => {
     try {
       const shared = {
@@ -389,28 +527,48 @@ function App({ simulationName }: AppProps) {
         ...playbackSettings,
       };
 
-      const url =
-        simulationName === "lorenz"
-          ? getSimulationShareUrl(
-              {
-                simulation: "lorenz",
-                seed,
-                settings: lorenzSettings,
-                shared,
-              },
-              LORENZ_URL_CODEC,
-              DEFAULT_URL_STATE,
-            )
-          : getSimulationShareUrl(
-              {
-                simulation: "double-pendulum",
-                seed,
-                settings: doublePendulumSettings,
-                shared,
-              },
-              DOUBLE_PENDULUM_URL_CODEC,
-              DEFAULT_URL_STATE,
-            );
+      let url: string;
+
+      switch (simulationName) {
+        case "double-pendulum":
+          url = getSimulationShareUrl(
+            {
+              simulation: "double-pendulum",
+              seed,
+              settings: doublePendulumSettings,
+              shared,
+            },
+            DOUBLE_PENDULUM_URL_CODEC,
+            DEFAULT_URL_STATE,
+          );
+          break;
+
+        case "lorenz":
+          url = getSimulationShareUrl(
+            {
+              simulation: "lorenz",
+              seed,
+              settings: lorenzSettings,
+              shared,
+            },
+            LORENZ_URL_CODEC,
+            DEFAULT_URL_STATE,
+          );
+          break;
+
+        case "pendulum-wave":
+          url = getSimulationShareUrl(
+            {
+              simulation: "pendulum-wave",
+              seed,
+              settings: pendulumWaveSettings,
+              shared,
+            },
+            PENDULUM_WAVE_URL_CODEC,
+            DEFAULT_URL_STATE,
+          );
+          break;
+      }
 
       await navigator.clipboard.writeText(url);
     } catch (error) {
@@ -418,68 +576,99 @@ function App({ simulationName }: AppProps) {
     }
   };
 
+  // RANDOMISE
+
   const handleRandomise = useCallback((): void => {
     const nextSeed = createSeed();
 
-    if (simulationName === "lorenz") {
-      const nextLorenzSettings = createLorenzRandomConfig(nextSeed);
-
-      const nextState: SimulationUrlState<LorenzSettings> = {
-        simulation: "lorenz",
-        seed: nextSeed,
-        settings: nextLorenzSettings,
-        shared: {
-          ...visualSettings,
-          ...playbackSettings,
-        },
-      };
-
-      setSeed(nextSeed);
-      setLorenzSettings(nextLorenzSettings);
-      setResetVersion((version) => version + 1);
-
-      setSimulationInUrl(
-        nextState,
-        LORENZ_URL_CODEC,
-        DEFAULT_URL_STATE,
-        "push",
-      );
-
-      return;
-    }
-
-    const randomisationBase: ControlSettings = {
-      ...doublePendulumSettings,
+    const shared = {
       ...visualSettings,
       ...playbackSettings,
-      seed: nextSeed,
     };
 
-    const nextDoublePendulumSettings = createDoublePendulumRandomConfig(
-      nextSeed,
-      randomisationBase,
-    );
+    switch (simulationName) {
+      case "double-pendulum": {
+        const randomisationBase: ControlSettings = {
+          ...doublePendulumSettings,
+          ...visualSettings,
+          ...playbackSettings,
+          seed: nextSeed,
+        };
 
-    const nextState: SimulationUrlState<ControlSettings> = {
-      simulation: "double-pendulum",
-      seed: nextSeed,
-      settings: nextDoublePendulumSettings,
-      shared: {
-        ...visualSettings,
-        ...playbackSettings,
-      },
-    };
+        const nextSettings = createDoublePendulumRandomConfig(
+          nextSeed,
+          randomisationBase,
+        );
 
-    setSeed(nextSeed);
-    setDoublePendulumSettings(nextDoublePendulumSettings);
-    setResetVersion((version) => version + 1);
+        const nextState: SimulationUrlState<ControlSettings> = {
+          simulation: "double-pendulum",
+          seed: nextSeed,
+          settings: nextSettings,
+          shared,
+        };
 
-    setSimulationInUrl(
-      nextState,
-      DOUBLE_PENDULUM_URL_CODEC,
-      DEFAULT_URL_STATE,
-      "push",
-    );
+        setSeed(nextSeed);
+        setDoublePendulumSettings(nextSettings);
+        setResetVersion((version) => version + 1);
+
+        setSimulationInUrl(
+          nextState,
+          DOUBLE_PENDULUM_URL_CODEC,
+          DEFAULT_URL_STATE,
+          "push",
+        );
+
+        return;
+      }
+
+      case "lorenz": {
+        const nextSettings = createLorenzRandomConfig(nextSeed);
+
+        const nextState: SimulationUrlState<LorenzSettings> = {
+          simulation: "lorenz",
+          seed: nextSeed,
+          settings: nextSettings,
+          shared,
+        };
+
+        setSeed(nextSeed);
+        setLorenzSettings(nextSettings);
+        setResetVersion((version) => version + 1);
+
+        setSimulationInUrl(
+          nextState,
+          LORENZ_URL_CODEC,
+          DEFAULT_URL_STATE,
+          "push",
+        );
+
+        return;
+      }
+
+      case "pendulum-wave": {
+        const nextSettings = createPendulumWaveRandomConfig(nextSeed);
+
+        const nextState: SimulationUrlState<PendulumWaveSettings> = {
+          simulation: "pendulum-wave",
+          seed: nextSeed,
+          settings: nextSettings,
+          shared,
+        };
+
+        setSeed(nextSeed);
+        setPendulumWaveSettings(nextSettings);
+        setResetVersion((version) => version + 1);
+
+        setSimulationInUrl(
+          nextState,
+          PENDULUM_WAVE_URL_CODEC,
+          DEFAULT_URL_STATE,
+          "push",
+        );
+
+        return;
+      }
+    }
   }, [
     doublePendulumSettings,
     playbackSettings,
@@ -487,11 +676,58 @@ function App({ simulationName }: AppProps) {
     visualSettings,
   ]);
 
+  // PRESENTATION
+
+  let title: string;
+
+  switch (simulationName) {
+    case "double-pendulum":
+      title = "Double Pendulum";
+      break;
+
+    case "lorenz":
+      title = "Lorenz Attractor";
+      break;
+
+    case "pendulum-wave":
+      title = "Pendulum Wave";
+      break;
+  }
+
+  let simulationControls;
+
+  switch (simulationName) {
+    case "double-pendulum":
+      simulationControls = (
+        <DoublePendulumControls
+          settings={doublePendulumSettings}
+          onChange={updateDoublePendulumSettings}
+        />
+      );
+      break;
+
+    case "lorenz":
+      simulationControls = (
+        <LorenzControls
+          settings={lorenzSettings}
+          onChange={updateLorenzSettings}
+        />
+      );
+      break;
+
+    case "pendulum-wave":
+      simulationControls = (
+        <PendulumWaveControls
+          settings={pendulumWaveSettings}
+          onChange={updatePendulumWaveSettings}
+        />
+      );
+      break;
+  }
+
   return (
     <SimulationPage
-      title={
-        simulationName === "lorenz" ? "Lorenz Attractor" : "Double Pendulum"
-      }
+      title={title}
       seed={seed}
       visualSettings={visualSettings}
       playbackSettings={playbackSettings}
@@ -505,17 +741,7 @@ function App({ simulationName }: AppProps) {
         setResetVersion((version) => version + 1);
       }}
     >
-      {simulationName === "lorenz" ? (
-        <LorenzControls
-          settings={lorenzSettings}
-          onChange={updateLorenzSettings}
-        />
-      ) : (
-        <DoublePendulumControls
-          settings={doublePendulumSettings}
-          onChange={updateDoublePendulumSettings}
-        />
-      )}
+      {simulationControls}
     </SimulationPage>
   );
 }
