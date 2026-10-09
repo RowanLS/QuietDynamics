@@ -1,7 +1,7 @@
 .control-panel {
+  box-sizing: border-box;
+
   width: 290px;
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
 
   padding: 1.1rem;
 
@@ -17,7 +17,6 @@
 
   color: rgba(255, 255, 255, 0.9);
 }
-
 .control-section + .control-section {
   margin-top: 1.2rem;
   padding-top: 1.2rem;
@@ -153,8 +152,13 @@
    * Keep the panel usable on small screens.
    */
 @media (max-width: 700px) {
+  .controls-wrapper {
+    left: 1rem;
+    right: 1rem;
+  }
+
   .control-panel {
-    width: min(290px, calc(100vw - 2rem));
+    width: 100%;
   }
 }
 
@@ -170,4 +174,61 @@
   width: 100%;
   min-height: 32px;
   font-size: 0.75rem;
+}
+.keyboard-shortcuts {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  padding-bottom: 0.25rem;
+
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+.keyboard-shortcuts summary {
+  color: rgb(225 235 240 / 75%);
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+.keyboard-shortcuts[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+.shortcut-list {
+  margin: 0;
+}
+
+.shortcut-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  padding: 0.35rem 0;
+}
+
+.shortcut-list dt,
+.shortcut-list dd {
+  margin: 0;
+}
+
+.shortcut-list dd {
+  color: rgb(225 235 240 / 60%);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.shortcut-list kbd {
+  display: inline-block;
+  min-width: 1.8rem;
+  padding: 0.15rem 0.4rem;
+
+  color: rgb(225 235 240 / 85%);
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-align: center;
+
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 0.3rem;
 }
