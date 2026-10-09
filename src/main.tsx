@@ -1,13 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+
 import {
   Navigate,
   RouterProvider,
   createBrowserRouter,
 } from "react-router-dom";
+
+import App from "./App";
 import { LandingPage } from "./pages/LandingPage";
 import { RandomSimulationPage } from "./pages/RandomSimulationPage";
-import App from "./App";
+import { SIMULATIONS } from "./simulations/catalogue";
 
 const router = createBrowserRouter(
   [
@@ -15,25 +18,20 @@ const router = createBrowserRouter(
       path: "/",
       element: <LandingPage />,
     },
-    {
-      path: "/double-pendulum",
-      element: <App simulationName="double-pendulum" />,
-    },
-    {
-      path: "/lorenz",
-      element: <App simulationName="lorenz" />,
-    },
+
+    ...SIMULATIONS.map((simulation) => ({
+      path: simulation.path,
+      element: <App simulationName={simulation.id} />,
+    })),
+
     {
       path: "/random",
       element: <RandomSimulationPage />,
     },
+
     {
       path: "*",
       element: <Navigate to="/" replace />,
-    },
-    {
-      path: "/pendulum-wave",
-      element: <App simulationName="pendulum-wave" />,
     },
   ],
   {

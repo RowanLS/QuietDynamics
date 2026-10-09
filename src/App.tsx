@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { DoublePendulumControls } from "./components/DoublePendulumControls";
-import { LorenzControls } from "./components/LorenzControls";
-import { PendulumWaveControls } from "./components/PendulumWaveControls";
 import { SimulationPage } from "./components/SimulationPage";
 
 import { createDoublePendulumSimulation } from "./simulations/doublePendulum/DoublePendulumSimulation";
@@ -18,6 +15,10 @@ import { createPendulumWaveSimulation } from "./simulations/pendulumWave/Pendulu
 import { createRandomConfig as createPendulumWaveRandomConfig } from "./simulations/pendulumWave/randomise";
 import type { PendulumWaveSettings } from "./simulations/pendulumWave/settings";
 import { createPendulumWaveUrlCodec } from "./simulations/pendulumWave/url";
+
+import { getSimulationDefinition } from "./simulations/catalogue";
+import { SimulationControls } from "./components/SimulationControls";
+import { assertNever } from "./utils/assertNever";
 
 import type {
   ControlSettings,
@@ -206,6 +207,12 @@ function loadInitialAppState(simulation: SimulationName): InitialAppState {
         pendulumWaveSettings: loaded.settings,
       };
     }
+
+    default:
+      return assertNever(
+        simulation,
+        "Unsupported simulation while loading initial state",
+      );
   }
 }
 
@@ -215,6 +222,7 @@ interface AppProps {
 
 function App({ simulationName }: AppProps) {
   // SHARED STATE
+  const simulationDefinition = getSimulationDefinition(simulationName);
 
   const [initialState] = useState(() => loadInitialAppState(simulationName));
 
@@ -304,6 +312,9 @@ function App({ simulationName }: AppProps) {
 
         case "pendulum-wave":
           return createPendulumWave(getRuntimeSettings);
+
+        default:
+          return assertNever(simulationName, "Unsupported active simulation");
       }
     },
     [createDoublePendulum, createLorenz, createPendulumWave, simulationName],
@@ -375,6 +386,12 @@ function App({ simulationName }: AppProps) {
 
           return;
         }
+
+        default:
+          return assertNever(
+            simulationName,
+            "Unsupported simulation while writing shared URL state",
+          );
       }
     },
     [
@@ -520,56 +537,61 @@ function App({ simulationName }: AppProps) {
 
   // COPY LINK
 
+  const getShareUrl = (): string => {
+    const shared = {
+      ...visualSettings,
+      ...playbackSettings,
+    };
+
+    switch (simulationName) {
+      case "double-pendulum":
+        return getSimulationShareUrl(
+          {
+            simulation: "double-pendulum",
+            seed,
+            settings: doublePendulumSettings,
+            shared,
+          },
+          DOUBLE_PENDULUM_URL_CODEC,
+          DEFAULT_URL_STATE,
+        );
+
+      case "lorenz":
+        return getSimulationShareUrl(
+          {
+            simulation: "lorenz",
+            seed,
+            settings: lorenzSettings,
+            shared,
+          },
+          LORENZ_URL_CODEC,
+          DEFAULT_URL_STATE,
+        );
+
+      case "pendulum-wave":
+        return getSimulationShareUrl(
+          {
+            simulation: "pendulum-wave",
+            seed,
+            settings: pendulumWaveSettings,
+            shared,
+          },
+          PENDULUM_WAVE_URL_CODEC,
+          DEFAULT_URL_STATE,
+        );
+
+      default:
+        return assertNever(
+          simulationName,
+          "Unsupported simulation while generating share URL",
+        );
+    }
+  };
+
   const handleCopyLink = async (): Promise<void> => {
+    const url = getShareUrl();
+
     try {
-      const shared = {
-        ...visualSettings,
-        ...playbackSettings,
-      };
-
-      let url: string;
-
-      switch (simulationName) {
-        case "double-pendulum":
-          url = getSimulationShareUrl(
-            {
-              simulation: "double-pendulum",
-              seed,
-              settings: doublePendulumSettings,
-              shared,
-            },
-            DOUBLE_PENDULUM_URL_CODEC,
-            DEFAULT_URL_STATE,
-          );
-          break;
-
-        case "lorenz":
-          url = getSimulationShareUrl(
-            {
-              simulation: "lorenz",
-              seed,
-              settings: lorenzSettings,
-              shared,
-            },
-            LORENZ_URL_CODEC,
-            DEFAULT_URL_STATE,
-          );
-          break;
-
-        case "pendulum-wave":
-          url = getSimulationShareUrl(
-            {
-              simulation: "pendulum-wave",
-              seed,
-              settings: pendulumWaveSettings,
-              shared,
-            },
-            PENDULUM_WAVE_URL_CODEC,
-            DEFAULT_URL_STATE,
-          );
-          break;
-      }
-
       await navigator.clipboard.writeText(url);
     } catch (error) {
       console.error("Unable to copy share URL.", error);
@@ -668,6 +690,12 @@ function App({ simulationName }: AppProps) {
 
         return;
       }
+
+      default:
+        return assertNever(
+          simulationName,
+          "Unsupported simulation while randomising",
+        );
     }
   }, [
     doublePendulumSettings,
@@ -675,59 +703,9 @@ function App({ simulationName }: AppProps) {
     simulationName,
     visualSettings,
   ]);
-
-  // PRESENTATION
-
-  let title: string;
-
-  switch (simulationName) {
-    case "double-pendulum":
-      title = "Double Pendulum";
-      break;
-
-    case "lorenz":
-      title = "Lorenz Attractor";
-      break;
-
-    case "pendulum-wave":
-      title = "Pendulum Wave";
-      break;
-  }
-
-  let simulationControls;
-
-  switch (simulationName) {
-    case "double-pendulum":
-      simulationControls = (
-        <DoublePendulumControls
-          settings={doublePendulumSettings}
-          onChange={updateDoublePendulumSettings}
-        />
-      );
-      break;
-
-    case "lorenz":
-      simulationControls = (
-        <LorenzControls
-          settings={lorenzSettings}
-          onChange={updateLorenzSettings}
-        />
-      );
-      break;
-
-    case "pendulum-wave":
-      simulationControls = (
-        <PendulumWaveControls
-          settings={pendulumWaveSettings}
-          onChange={updatePendulumWaveSettings}
-        />
-      );
-      break;
-  }
-
   return (
     <SimulationPage
-      title={title}
+      title={simulationDefinition.title}
       seed={seed}
       visualSettings={visualSettings}
       playbackSettings={playbackSettings}
@@ -741,7 +719,15 @@ function App({ simulationName }: AppProps) {
         setResetVersion((version) => version + 1);
       }}
     >
-      {simulationControls}
+      <SimulationControls
+        simulationName={simulationName}
+        doublePendulumSettings={doublePendulumSettings}
+        lorenzSettings={lorenzSettings}
+        pendulumWaveSettings={pendulumWaveSettings}
+        onDoublePendulumChange={updateDoublePendulumSettings}
+        onLorenzChange={updateLorenzSettings}
+        onPendulumWaveChange={updatePendulumWaveSettings}
+      />
     </SimulationPage>
   );
 }
