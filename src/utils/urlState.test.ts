@@ -11,15 +11,9 @@ import {
   type SimulationUrlState,
 } from "./urlState";
 
-const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
-  sigma: 10,
-  rho: 28,
-  beta: 8 / 3,
-  initialX: 0.1,
-  initialY: 0,
-  initialZ: 0,
-  startingHue: 200,
-};
+import { createDoublePendulumUrlCodec } from "../simulations/doublePendulum/url";
+import { createRandomConfig as createDoublePendulumRandomConfig } from "../simulations/doublePendulum/randomise";
+import type { ControlSettings } from "../types/settings";
 
 const DEFAULT_VISUAL_SETTINGS = {
   background: "#071018",
@@ -37,6 +31,16 @@ const DEFAULT_PLAYBACK_SETTINGS = {
 const DEFAULTS: SharedUrlDefaults = {
   visual: DEFAULT_VISUAL_SETTINGS,
   playback: DEFAULT_PLAYBACK_SETTINGS,
+};
+
+const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
+  sigma: 10,
+  rho: 28,
+  beta: 8 / 3,
+  initialX: 0.1,
+  initialY: 0,
+  initialZ: 0,
+  startingHue: 200,
 };
 
 const lorenzCodec = createLorenzUrlCodec(
@@ -522,5 +526,277 @@ describe("Lorenz URL state", () => {
       expect(loaded.shared.simulationSpeed).toBe(1.5);
       expect(loaded.shared.paused).toBe(false);
     });
+  });
+});
+
+// DOUBLE PENDULUM TESTS
+const DEFAULT_DOUBLE_PENDULUM_SETTINGS: ControlSettings = {
+  seed: 42,
+  background: "#071018",
+  palette: "neon-rainbow",
+  startingHue: 200,
+  trailLifetime: 18,
+  glow: 100,
+  rainbowSpeed: 0.8,
+  simulationSpeed: 1,
+  m1: 1,
+  m2: 1.37,
+  l1: 1,
+  l2: 1,
+  gravity: 9.81,
+  initialAngle1: 2.6,
+  initialAngle2: -0.9,
+  initialOmega1: 0,
+  initialOmega2: 0,
+  paused: false,
+};
+
+const doublePendulumCodec = createDoublePendulumUrlCodec(
+  createDoublePendulumRandomConfig,
+  DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+);
+
+describe("Double Pendulum URL state", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("loads the default configuration with no URL parameters", () => {
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.simulation).toBe("double-pendulum");
+    expect(result.seed).toBe(0);
+
+    expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
+
+    expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
+
+    expect(result.settings.initialAngle1).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
+    );
+
+    expect(result.settings.initialOmega1).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
+    );
+  });
+
+  it("reconstructs a deterministic configuration from a seed", () => {
+    const seed = 12345;
+
+    setUrlSearch(`simulation=double-pendulum&seed=${seed}`);
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    const expected = createDoublePendulumRandomConfig(
+      seed,
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+    );
+
+    expect(result.seed).toBe(seed);
+    expect(result.settings.m1).toBe(expected.m1);
+    expect(result.settings.m2).toBe(expected.m2);
+    expect(result.settings.l1).toBe(expected.l1);
+    expect(result.settings.l2).toBe(expected.l2);
+    expect(result.settings.gravity).toBe(expected.gravity);
+    expect(result.settings.initialAngle1).toBe(expected.initialAngle1);
+    expect(result.settings.initialAngle2).toBe(expected.initialAngle2);
+    expect(result.settings.initialOmega1).toBe(expected.initialOmega1);
+    expect(result.settings.initialOmega2).toBe(expected.initialOmega2);
+    expect(result.settings.startingHue).toBe(expected.startingHue);
+  });
+
+  it("applies explicit physical overrides", () => {
+    setUrlSearch(
+      "simulation=double-pendulum" +
+        "&m1=1.8" +
+        "&m2=2.1" +
+        "&l1=1.5" +
+        "&l2=0.8" +
+        "&gravity=12",
+    );
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.settings.m1).toBe(1.8);
+    expect(result.settings.m2).toBe(2.1);
+    expect(result.settings.l1).toBe(1.5);
+    expect(result.settings.l2).toBe(0.8);
+    expect(result.settings.gravity).toBe(12);
+  });
+
+  it("applies explicit initial-condition overrides", () => {
+    setUrlSearch(
+      "simulation=double-pendulum" +
+        "&initialAngle1=1.25" +
+        "&initialAngle2=-2" +
+        "&initialOmega1=3" +
+        "&initialOmega2=-4",
+    );
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.settings.initialAngle1).toBe(1.25);
+    expect(result.settings.initialAngle2).toBe(-2);
+    expect(result.settings.initialOmega1).toBe(3);
+    expect(result.settings.initialOmega2).toBe(-4);
+  });
+
+  it("applies an explicit starting hue override", () => {
+    setUrlSearch("simulation=double-pendulum&startingHue=275");
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.settings.startingHue).toBe(275);
+  });
+
+  it("ignores invalid physical parameter values", () => {
+    setUrlSearch(
+      "simulation=double-pendulum" +
+        "&m1=0" +
+        "&m2=99" +
+        "&l1=-1" +
+        "&l2=999" +
+        "&gravity=abc",
+    );
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.settings.m1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m1);
+
+    expect(result.settings.m2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.m2);
+
+    expect(result.settings.l1).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l1);
+
+    expect(result.settings.l2).toBe(DEFAULT_DOUBLE_PENDULUM_SETTINGS.l2);
+
+    expect(result.settings.gravity).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.gravity,
+    );
+  });
+
+  it("ignores invalid initial conditions", () => {
+    setUrlSearch(
+      "simulation=double-pendulum" +
+        "&initialAngle1=10" +
+        "&initialAngle2=-10" +
+        "&initialOmega1=999" +
+        "&initialOmega2=abc" +
+        "&startingHue=360",
+    );
+
+    const result = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(result.settings.initialAngle1).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle1,
+    );
+
+    expect(result.settings.initialAngle2).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialAngle2,
+    );
+
+    expect(result.settings.initialOmega1).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega1,
+    );
+
+    expect(result.settings.initialOmega2).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.initialOmega2,
+    );
+
+    expect(result.settings.startingHue).toBe(
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS.startingHue,
+    );
+  });
+
+  it("serializes physical overrides", () => {
+    const state = {
+      simulation: "double-pendulum" as const,
+      seed: 0,
+      settings: {
+        ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        m1: 1.75,
+        gravity: 14,
+      },
+      shared: {
+        ...DEFAULT_VISUAL_SETTINGS,
+        ...DEFAULT_PLAYBACK_SETTINGS,
+      },
+    };
+
+    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+
+    const params = new URLSearchParams(window.location.search);
+
+    expect(params.get("m1")).toBe("1.75");
+    expect(params.get("gravity")).toBe("14");
+  });
+
+  it("serializes initial-condition overrides", () => {
+    const state = {
+      simulation: "double-pendulum" as const,
+      seed: 0,
+      settings: {
+        ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        initialAngle1: 1.2,
+        initialAngle2: -1.7,
+        initialOmega1: 2.5,
+        initialOmega2: -3.5,
+        startingHue: 90,
+      },
+      shared: {
+        ...DEFAULT_VISUAL_SETTINGS,
+        ...DEFAULT_PLAYBACK_SETTINGS,
+      },
+    };
+
+    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+
+    const params = new URLSearchParams(window.location.search);
+
+    expect(params.get("initialAngle1")).toBe("1.2");
+    expect(params.get("initialAngle2")).toBe("-1.7");
+    expect(params.get("initialOmega1")).toBe("2.5");
+    expect(params.get("initialOmega2")).toBe("-3.5");
+    expect(params.get("startingHue")).toBe("90");
+  });
+
+  it("round-trips a seeded Double Pendulum configuration", () => {
+    const seed = 987654321;
+
+    const generated = createDoublePendulumRandomConfig(
+      seed,
+      DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+    );
+
+    const state = {
+      simulation: "double-pendulum" as const,
+      seed,
+      settings: generated,
+      shared: {
+        ...DEFAULT_VISUAL_SETTINGS,
+        ...DEFAULT_PLAYBACK_SETTINGS,
+      },
+    };
+
+    setSimulationInUrl(state, doublePendulumCodec, DEFAULTS);
+
+    const loaded = loadSimulationFromUrl(doublePendulumCodec, DEFAULTS);
+
+    expect(loaded.simulation).toBe("double-pendulum");
+    expect(loaded.seed).toBe(seed);
+
+    expect(loaded.settings.m1).toBe(generated.m1);
+    expect(loaded.settings.m2).toBe(generated.m2);
+    expect(loaded.settings.l1).toBe(generated.l1);
+    expect(loaded.settings.l2).toBe(generated.l2);
+    expect(loaded.settings.gravity).toBe(generated.gravity);
+    expect(loaded.settings.initialAngle1).toBe(generated.initialAngle1);
+    expect(loaded.settings.initialAngle2).toBe(generated.initialAngle2);
+    expect(loaded.settings.initialOmega1).toBe(generated.initialOmega1);
+    expect(loaded.settings.initialOmega2).toBe(generated.initialOmega2);
+    expect(loaded.settings.startingHue).toBe(generated.startingHue);
   });
 });
