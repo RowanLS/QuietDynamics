@@ -50,6 +50,12 @@ export function LandingPage() {
           </Link>
         ))}
       </section>
+      <div className="random-simulation">
+        <Link to="/random" className="random-simulation-link">
+          Random simulation
+          <span aria-hidden="true"> →</span>
+        </Link>
+      </div>
     </main>
   );
 }

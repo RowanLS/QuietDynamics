@@ -27,14 +27,6 @@ export function mulberry32(seed: number): () => number {
 }
 
 /**
- * Generate a non-zero unsigned 32-bit seed.
- *
- * Zero is reserved for the application's default configuration.
- */
-export function createSeed(): number {
-  return 1 + Math.floor(Math.random() * 0xffffffff);
-}
-/**
  * Generate a floating-point value in [min, max).
  */
 function randomInRange(random: () => number, min: number, max: number): number {

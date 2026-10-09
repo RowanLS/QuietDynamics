@@ -6,7 +6,7 @@ import {
   createBrowserRouter,
 } from "react-router-dom";
 import { LandingPage } from "./pages/LandingPage";
-
+import { RandomSimulationPage } from "./pages/RandomSimulationPage";
 import App from "./App";
 
 const router = createBrowserRouter([
@@ -21,6 +21,10 @@ const router = createBrowserRouter([
   {
     path: "/lorenz",
     element: <App simulationName="lorenz" />,
+  },
+  {
+    path: "/random",
+    element: <RandomSimulationPage />,
   },
   {
     path: "*",

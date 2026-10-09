@@ -207,3 +207,51 @@
     transform: none;
   }
 }
+
+.random-simulation {
+  display: flex;
+  justify-content: center;
+
+  width: min(100%, 70rem);
+  margin: clamp(2rem, 5vw, 3.5rem) auto 0;
+}
+
+.random-simulation-link {
+  padding: 0.85rem 1.25rem;
+
+  color: rgb(220 240 250 / 90%);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.random-simulation-link:hover {
+  transform: translateY(-2px);
+
+  background: rgb(255 255 255 / 8%);
+  border-color: rgb(255 255 255 / 20%);
+}
+
+.random-simulation-link:focus-visible {
+  outline: 2px solid rgb(175 225 255 / 90%);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .random-simulation-link {
+    transition: none;
+  }
+
+  .random-simulation-link:hover {
+    transform: none;
+  }
+}
