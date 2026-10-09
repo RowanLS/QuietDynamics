@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Quiet Dynamics</title>
+    <script>
+      /*
+       * Preserve the repository prefix and redirect the requested SPA
+       * route through the site's index page.
+       */
+      const locationParts = window.location;
+
+      const base = "/QuietDynamics/";
+
+      if (!locationParts.pathname.startsWith(base)) {
+        window.location.replace(base);
+      } else {
+        const route = locationParts.pathname.slice(base.length);
+
+        const destination =
+          base +
+          "?/" +
+          route.replace(/&/g, "~and~") +
+          locationParts.search.replace(/&/g, "~and~") +
+          locationParts.hash;
+
+        window.location.replace(destination);
+      }
+    </script>
+  </head>
+  <body></body>
+</html>
