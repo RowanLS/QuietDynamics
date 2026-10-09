@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ControlPanel } from "./components/ControlPanel";
+import { SimulationPage } from "./components/SimulationPage";
 import { DoublePendulumControls } from "./components/DoublePendulumControls";
 import { LorenzControls } from "./components/LorenzControls";
-import { SimulationCanvas } from "./components/SimulationCanvas";
 
 import {
   createRandomConfig as createDoublePendulumRandomConfig,
@@ -104,13 +103,6 @@ const LORENZ_URL_CODEC = createLorenzUrlCodec(
   DEFAULT_LORENZ_SETTINGS,
 );
 
-// HELPER TO DETERMINE SIMULATION FROM URL
-function getRequestedSimulation(): SimulationName {
-  const value = new URLSearchParams(window.location.search).get("simulation");
-
-  return value === "lorenz" ? "lorenz" : "double-pendulum";
-}
-
 // INITIAL STATE LOADER
 interface InitialAppState {
   simulation: SimulationName;
@@ -121,9 +113,7 @@ interface InitialAppState {
   lorenzSettings: LorenzSettings;
 }
 
-function loadInitialAppState(): InitialAppState {
-  const simulation = getRequestedSimulation();
-
+function loadInitialAppState(simulation: SimulationName): InitialAppState {
   if (simulation === "lorenz") {
     const loaded = loadSimulationFromUrl(LORENZ_URL_CODEC, DEFAULT_URL_STATE);
 
@@ -166,13 +156,13 @@ function loadInitialAppState(): InitialAppState {
   };
 }
 
-const UI_HIDE_DELAY = 4000;
+interface AppProps {
+  simulationName: SimulationName;
+}
 
-function App() {
+function App({ simulationName }: AppProps) {
   // CREATE STATES
-  const [initialState] = useState(loadInitialAppState);
-
-  const [simulationName] = useState<SimulationName>(initialState.simulation);
+  const [initialState] = useState(() => loadInitialAppState(simulationName));
 
   const [seed, setSeed] = useState(initialState.seed);
 
@@ -191,11 +181,7 @@ function App() {
     initialState.lorenzSettings,
   );
 
-  const [controlsOpen, setControlsOpen] = useState(false);
-  const [uiVisible, setUiVisible] = useState(true);
   const [resetVersion, setResetVersion] = useState(0);
-
-  const hideTimerRef = useRef<number | null>(null);
 
   // CREATE REFS
   const doublePendulumSettingsRef = useRef(doublePendulumSettings);
@@ -209,16 +195,6 @@ function App() {
   useEffect(() => {
     lorenzSettingsRef.current = lorenzSettings;
   }, [lorenzSettings]);
-
-  // COMMON RUNTIME SETTINGS
-  const runtimeSettings: SimulationRuntimeSettings = {
-    simulationSpeed: playbackSettings.simulationSpeed,
-    paused: playbackSettings.paused,
-    rainbowSpeed: visualSettings.rainbowSpeed,
-    palette: visualSettings.palette,
-    trailLifetime: visualSettings.trailLifetime,
-    glow: visualSettings.glow,
-  };
 
   // STABLE FACTORIES FOR SIMULATIONS
   const createDoublePendulum = useCallback(
@@ -408,6 +384,41 @@ function App() {
   };
 
   // ACTIVITY HANDLERS
+  const handleCopyLink = async (): Promise<void> => {
+    try {
+      const shared = {
+        ...visualSettings,
+        ...playbackSettings,
+      };
+
+      const url =
+        simulationName === "lorenz"
+          ? getSimulationShareUrl(
+              {
+                simulation: "lorenz",
+                seed,
+                settings: lorenzSettings,
+                shared,
+              },
+              LORENZ_URL_CODEC,
+              DEFAULT_URL_STATE,
+            )
+          : getSimulationShareUrl(
+              {
+                simulation: "double-pendulum",
+                seed,
+                settings: doublePendulumSettings,
+                shared,
+              },
+              DOUBLE_PENDULUM_URL_CODEC,
+              DEFAULT_URL_STATE,
+            );
+
+      await navigator.clipboard.writeText(url);
+    } catch (error) {
+      console.error("Unable to copy share URL.", error);
+    }
+  };
 
   const handleRandomise = useCallback((): void => {
     const nextSeed = createSeed();
@@ -478,254 +489,36 @@ function App() {
     visualSettings,
   ]);
 
-  const clearHideTimer = useCallback(() => {
-    if (hideTimerRef.current !== null) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-  }, []);
-
-  const handleFullscreen = async (): Promise<void> => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        return;
-      }
-
-      await document.documentElement.requestFullscreen();
-    } catch (error) {
-      console.error("Unable to change fullscreen state.", error);
-    }
-  };
-
-  const handleTogglePause = useCallback((): void => {
-    updatePlaybackSettings({
-      paused: !playbackSettings.paused,
-    });
-  }, [playbackSettings.paused, updatePlaybackSettings]);
-
-  const handleCopyLink = async (): Promise<void> => {
-    try {
-      const shared = {
-        ...visualSettings,
-        ...playbackSettings,
-      };
-
-      const url =
-        simulationName === "lorenz"
-          ? getSimulationShareUrl(
-              {
-                simulation: "lorenz",
-                seed,
-                settings: lorenzSettings,
-                shared,
-              },
-              LORENZ_URL_CODEC,
-              DEFAULT_URL_STATE,
-            )
-          : getSimulationShareUrl(
-              {
-                simulation: "double-pendulum",
-                seed,
-                settings: doublePendulumSettings,
-                shared,
-              },
-              DOUBLE_PENDULUM_URL_CODEC,
-              DEFAULT_URL_STATE,
-            );
-
-      await navigator.clipboard.writeText(url);
-    } catch (error) {
-      console.error("Unable to copy share URL.", error);
-    }
-  };
-
-  const revealUi = useCallback(() => {
-    setUiVisible(true);
-    clearHideTimer();
-
-    if (controlsOpen) {
-      return;
-    }
-
-    hideTimerRef.current = window.setTimeout(() => {
-      setUiVisible(false);
-      hideTimerRef.current = null;
-    }, UI_HIDE_DELAY);
-  }, [clearHideTimer, controlsOpen]);
-
-  useEffect(() => {
-    clearHideTimer();
-
-    if (controlsOpen) {
-      return;
-    }
-
-    hideTimerRef.current = window.setTimeout(() => {
-      setUiVisible(false);
-      hideTimerRef.current = null;
-    }, UI_HIDE_DELAY);
-
-    return clearHideTimer;
-  }, [controlsOpen, clearHideTimer]);
-
-  useEffect(() => {
-    const handleActivity = (): void => {
-      revealUi();
-    };
-
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      revealUi();
-
-      if (event.key === "Escape" && controlsOpen) {
-        setControlsOpen(false);
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "BUTTON")
-      ) {
-        return;
-      }
-
-      if (event.key.toLowerCase() === "r") {
-        handleRandomise();
-        return;
-      }
-
-      if (event.key.toLowerCase() === "f") {
-        void handleFullscreen();
-        return;
-      }
-
-      if (event.code === "Space") {
-        event.preventDefault();
-        handleTogglePause();
-      }
-    };
-
-    window.addEventListener("pointermove", handleActivity, {
-      passive: true,
-    });
-
-    window.addEventListener("pointerdown", handleActivity, {
-      passive: true,
-    });
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointermove", handleActivity);
-
-      window.removeEventListener("pointerdown", handleActivity);
-
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [controlsOpen, handleRandomise, handleTogglePause, revealUi]);
-
-  useEffect(() => {
-    return () => {
-      clearHideTimer();
-    };
-  }, [clearHideTimer]);
-
   return (
-    <main
-      className="app"
-      style={{
-        backgroundColor: visualSettings.background,
-      }}
-      onDoubleClick={(event) => {
-        /*
-         * Don't randomise when the user double-clicks inside the panel.
-         */
-        if (
-          event.target instanceof HTMLElement &&
-          event.target.closest(".control-panel")
-        ) {
-          return;
-        }
-
-        handleRandomise();
+    <SimulationPage
+      title={
+        simulationName === "lorenz" ? "Lorenz Attractor" : "Double Pendulum"
+      }
+      seed={seed}
+      visualSettings={visualSettings}
+      playbackSettings={playbackSettings}
+      createSimulation={createActiveSimulation}
+      onVisualChange={updateVisualSettings}
+      onPlaybackChange={updatePlaybackSettings}
+      onRandomise={handleRandomise}
+      onCopyLink={handleCopyLink}
+      resetVersion={resetVersion}
+      onReset={() => {
+        setResetVersion((version) => version + 1);
       }}
     >
-      <SimulationCanvas
-        runtimeSettings={runtimeSettings}
-        resetVersion={resetVersion}
-        createSimulation={createActiveSimulation}
-      />
-
-      <div
-        className={`ui-layer ${
-          uiVisible || controlsOpen ? "ui-visible" : "ui-hidden"
-        }`}
-      >
-        <div className="overlay">
-          <h1>Quiet Dynamics</h1>
-          <h6>Mathematical motion, endlessly unfolding</h6>
-          <p>
-            {simulationName === "lorenz"
-              ? "Lorenz Attractor"
-              : "Double Pendulum"}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="controls-toggle"
-          aria-expanded={controlsOpen}
-          aria-controls="control-panel"
-          onClick={() => {
-            setControlsOpen((open) => !open);
-          }}
-        >
-          Controls
-        </button>
-      </div>
-
-      {controlsOpen && (
-        <>
-          <div
-            className="controls-backdrop"
-            onClick={() => setControlsOpen(false)}
-            aria-hidden="true"
-          />
-
-          <div id="control-panel" className="controls-wrapper">
-            <ControlPanel
-              visualSettings={visualSettings}
-              playbackSettings={playbackSettings}
-              onVisualChange={updateVisualSettings}
-              onPlaybackChange={updatePlaybackSettings}
-              onRandomise={handleRandomise}
-              onReset={() => {
-                setResetVersion((version) => version + 1);
-              }}
-              onFullscreen={handleFullscreen}
-              onCopyLink={handleCopyLink}
-              seed={seed}
-            >
-              {simulationName === "lorenz" ? (
-                <LorenzControls
-                  settings={lorenzSettings}
-                  onChange={updateLorenzSettings}
-                />
-              ) : (
-                <DoublePendulumControls
-                  settings={doublePendulumSettings}
-                  onChange={updateDoublePendulumSettings}
-                />
-              )}
-            </ControlPanel>
-          </div>
-        </>
+      {simulationName === "lorenz" ? (
+        <LorenzControls
+          settings={lorenzSettings}
+          onChange={updateLorenzSettings}
+        />
+      ) : (
+        <DoublePendulumControls
+          settings={doublePendulumSettings}
+          onChange={updateDoublePendulumSettings}
+        />
       )}
-    </main>
+    </SimulationPage>
   );
 }
 

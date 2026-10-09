@@ -1,9 +1,43 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  Navigate,
+  RouterProvider,
+  createBrowserRouter,
+} from "react-router-dom";
+import { LandingPage } from "./pages/LandingPage";
+
 import App from "./App";
 
-createRoot(document.getElementById("root")!).render(
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <LandingPage />,
+  },
+  {
+    path: "/double-pendulum",
+    element: <App simulationName="double-pendulum" />,
+  },
+  {
+    path: "/lorenz",
+    element: <App simulationName="lorenz" />,
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
+  },
+]);
+
+const rootElement = document.getElementById("root");
+
+if (rootElement === null) {
+  throw new Error(
+    'Unable to mount application: element "#root" was not found.',
+  );
+}
+
+createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </StrictMode>,
 );

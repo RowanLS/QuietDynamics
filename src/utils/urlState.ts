@@ -14,7 +14,9 @@ import type {
   PlaybackSettings,
 } from "../types/settings";
 
-export type SimulationName = "double-pendulum" | "lorenz";
+import type { SimulationName } from "../types/simulationName";
+
+export type { SimulationName } from "../types/simulationName";
 
 const MAX_UINT32 = 0xffffffff;
 
@@ -101,17 +103,6 @@ function parsePalette(value: string | null): PaletteName | null {
     case "rainbow":
     case "gradient":
     case "solid":
-      return value;
-
-    default:
-      return null;
-  }
-}
-
-function parseSimulation(value: string | null): SimulationName | null {
-  switch (value) {
-    case "double-pendulum":
-    case "lorenz":
       return value;
 
     default:
@@ -206,10 +197,6 @@ function serializeSharedOverrides(
   }
 }
 
-export interface SharedUrlDefaults {
-  visual: VisualSettings;
-  playback: PlaybackSettings;
-}
 /**
  * Load a simulation configuration and shared settings from the current URL.
  *
@@ -237,15 +224,23 @@ export function loadSimulationFromUrl<TSettings>(
 
   const shared = applySharedOverrides(sharedDefaults, params);
 
-  const simulation =
-    parseSimulation(params.get("simulation")) ?? codec.simulation;
-
   return {
-    simulation,
+    simulation: codec.simulation,
     seed,
     settings,
     shared,
   };
+}
+
+function assertMatchingSimulation<TSettings>(
+  state: SimulationUrlState<TSettings>,
+  codec: UrlCodec<TSettings>,
+): void {
+  if (state.simulation !== codec.simulation) {
+    throw new Error(
+      `Simulation state "${state.simulation}" does not match URL codec "${codec.simulation}".`,
+    );
+  }
 }
 
 /**
@@ -257,13 +252,10 @@ export function setSimulationInUrl<TSettings>(
   defaults: SharedUrlDefaults,
   mode: "replace" | "push" = "replace",
 ): void {
+  assertMatchingSimulation(state, codec);
   const url = new URL(window.location.href);
 
   url.search = "";
-
-  if (state.simulation !== codec.simulation) {
-    url.searchParams.set("simulation", state.simulation);
-  }
 
   if (state.seed !== 0) {
     url.searchParams.set("seed", String(state.seed));
@@ -297,13 +289,10 @@ export function getSimulationShareUrl<TSettings>(
   codec: UrlCodec<TSettings>,
   defaults: SharedUrlDefaults,
 ): string {
+  assertMatchingSimulation(state, codec);
   const url = new URL(window.location.href);
 
   url.search = "";
-
-  if (state.simulation !== codec.simulation) {
-    url.searchParams.set("simulation", state.simulation);
-  }
 
   if (state.seed !== 0) {
     url.searchParams.set("seed", String(state.seed));
