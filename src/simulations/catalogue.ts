@@ -1,5 +1,6 @@
 import doublePendulumPreview from "../assets/previews/double-pendulum.webp";
 import lorenzPreview from "../assets/previews/lorenz.webp";
+import pendulumWavePreview from "../assets/previews/pendulum-wave.webp";
 
 import type { SimulationName } from "../types/simulationName";
 
@@ -26,5 +27,13 @@ export const SIMULATIONS: readonly SimulationDefinition[] = [
       "A continuous trajectory through the classic Lorenz chaotic system.",
     path: "/lorenz",
     preview: lorenzPreview,
+  },
+  {
+    id: "pendulum-wave",
+    title: "Pendulum Wave",
+    description:
+      "A field of pendulums drifting through waves of order and disorder.",
+    path: "/pendulum-wave",
+    preview: pendulumWavePreview,
   },
 ];

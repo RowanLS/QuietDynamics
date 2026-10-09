@@ -31,6 +31,10 @@ const router = createBrowserRouter(
       path: "*",
       element: <Navigate to="/" replace />,
     },
+    {
+      path: "/pendulum-wave",
+      element: <App simulationName="pendulum-wave" />,
+    },
   ],
   {
     basename: import.meta.env.BASE_URL,

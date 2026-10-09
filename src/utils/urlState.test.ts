@@ -5,6 +5,10 @@ import { createDoublePendulumUrlCodec } from "../simulations/doublePendulum/url"
 import { createRandomConfig as createLorenzRandomConfig } from "../simulations/lorenz/randomise";
 import type { LorenzSettings } from "../simulations/lorenz/settings";
 import { createLorenzUrlCodec } from "../simulations/lorenz/url";
+import { createRandomConfig as createPendulumWaveRandomConfig } from "../simulations/pendulumWave/randomise";
+import type { PendulumWaveSettings } from "../simulations/pendulumWave/settings";
+import { createPendulumWaveUrlCodec } from "../simulations/pendulumWave/url";
+
 import type { ControlSettings } from "../types/settings";
 import {
   getSimulationShareUrl,
@@ -62,6 +66,46 @@ function createLorenzState(
     },
     ...overrides,
   };
+}
+const DEFAULT_PENDULUM_WAVE_SETTINGS: PendulumWaveSettings = {
+  pendulumCount: 30,
+  baseOscillations: 24,
+  wavePeriod: 90,
+  amplitude: 0.35,
+  startingHue: 200,
+};
+
+const pendulumWaveCodec = createPendulumWaveUrlCodec(
+  createPendulumWaveRandomConfig,
+  DEFAULT_PENDULUM_WAVE_SETTINGS,
+);
+
+function createPendulumWaveState(
+  overrides: Partial<SimulationUrlState<PendulumWaveSettings>> = {},
+): SimulationUrlState<PendulumWaveSettings> {
+  return {
+    simulation: "pendulum-wave",
+    seed: 0,
+    settings: {
+      ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+    },
+    shared: {
+      ...DEFAULT_VISUAL_SETTINGS,
+      ...DEFAULT_PLAYBACK_SETTINGS,
+    },
+    ...overrides,
+  };
+}
+
+function expectPendulumWaveSettingsEqual(
+  actual: PendulumWaveSettings,
+  expected: PendulumWaveSettings,
+): void {
+  expect(actual.pendulumCount).toBe(expected.pendulumCount);
+  expect(actual.baseOscillations).toBe(expected.baseOscillations);
+  expect(actual.wavePeriod).toBeCloseTo(expected.wavePeriod, 12);
+  expect(actual.amplitude).toBeCloseTo(expected.amplitude, 12);
+  expect(actual.startingHue).toBeCloseTo(expected.startingHue, 12);
 }
 
 function setUrl(pathname: string, search = ""): void {
@@ -922,6 +966,450 @@ describe("Double Pendulum URL state", () => {
       expect(loaded.settings.initialOmega1).toBe(generated.initialOmega1);
       expect(loaded.settings.initialOmega2).toBe(generated.initialOmega2);
       expect(loaded.settings.startingHue).toBe(generated.startingHue);
+    });
+  });
+});
+
+describe("Pendulum Wave URL state", () => {
+  beforeEach(() => {
+    setUrl("/pendulum-wave");
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  describe("loadSimulationFromUrl", () => {
+    it("loads the default configuration with no URL parameters", () => {
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("pendulum-wave");
+      expect(result.seed).toBe(0);
+
+      expectPendulumWaveSettingsEqual(
+        result.settings,
+        DEFAULT_PENDULUM_WAVE_SETTINGS,
+      );
+
+      expect(result.shared).toEqual({
+        ...DEFAULT_VISUAL_SETTINGS,
+        ...DEFAULT_PLAYBACK_SETTINGS,
+      });
+    });
+
+    it("uses the codec to identify the simulation", () => {
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("pendulum-wave");
+    });
+
+    it("ignores a legacy simulation query parameter", () => {
+      setUrl("/pendulum-wave", "simulation=lorenz&seed=12345");
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.simulation).toBe("pendulum-wave");
+      expect(result.seed).toBe(12345);
+    });
+
+    it("reconstructs a deterministic configuration from a seed", () => {
+      const seed = 12345;
+
+      setUrl("/pendulum-wave", `seed=${seed}`);
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      const expected = createPendulumWaveRandomConfig(seed);
+
+      expect(result.seed).toBe(seed);
+
+      expectPendulumWaveSettingsEqual(result.settings, expected);
+    });
+
+    it("applies explicit overrides on top of a seeded configuration", () => {
+      const seed = 12345;
+
+      setUrl(
+        "/pendulum-wave",
+        `seed=${seed}` +
+          "&pendulumCount=36" +
+          "&baseOscillations=28" +
+          "&wavePeriod=105" +
+          "&amplitude=0.42" +
+          "&startingHue=120",
+      );
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.settings.pendulumCount).toBe(36);
+      expect(result.settings.baseOscillations).toBe(28);
+      expect(result.settings.wavePeriod).toBe(105);
+      expect(result.settings.amplitude).toBeCloseTo(0.42, 12);
+      expect(result.settings.startingHue).toBe(120);
+    });
+
+    it("preserves seeded values that are not explicitly overridden", () => {
+      const seed = 12345;
+
+      setUrl("/pendulum-wave", `seed=${seed}&amplitude=0.42`);
+
+      const generated = createPendulumWaveRandomConfig(seed);
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.settings.amplitude).toBeCloseTo(0.42, 12);
+
+      expect(result.settings.pendulumCount).toBe(generated.pendulumCount);
+
+      expect(result.settings.baseOscillations).toBe(generated.baseOscillations);
+
+      expect(result.settings.wavePeriod).toBeCloseTo(generated.wavePeriod, 12);
+
+      expect(result.settings.startingHue).toBe(generated.startingHue);
+    });
+
+    it("loads shared visual settings", () => {
+      setUrl(
+        "/pendulum-wave",
+        "background=%23ffffff" +
+          "&palette=rainbow" +
+          "&glow=175" +
+          "&trailLifetime=25",
+      );
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.shared.background).toBe("#ffffff");
+      expect(result.shared.palette).toBe("rainbow");
+      expect(result.shared.glow).toBe(175);
+      expect(result.shared.trailLifetime).toBe(25);
+    });
+
+    it("loads shared playback settings", () => {
+      setUrl("/pendulum-wave", "simulationSpeed=0.75&rainbowSpeed=1.4");
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.shared.simulationSpeed).toBe(0.75);
+      expect(result.shared.rainbowSpeed).toBe(1.4);
+    });
+
+    it("does not restore paused state", () => {
+      setUrl("/pendulum-wave", "paused=true");
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.shared.paused).toBe(false);
+    });
+
+    it("ignores an invalid seed", () => {
+      setUrl("/pendulum-wave", "seed=not-a-seed");
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.seed).toBe(0);
+
+      expectPendulumWaveSettingsEqual(
+        result.settings,
+        DEFAULT_PENDULUM_WAVE_SETTINGS,
+      );
+    });
+
+    it("ignores invalid Pendulum Wave parameter values", () => {
+      setUrl(
+        "/pendulum-wave",
+        "pendulumCount=5" +
+          "&baseOscillations=9" +
+          "&wavePeriod=10" +
+          "&amplitude=2" +
+          "&startingHue=360",
+      );
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expectPendulumWaveSettingsEqual(
+        result.settings,
+        DEFAULT_PENDULUM_WAVE_SETTINGS,
+      );
+    });
+
+    it("ignores non-integer values for integer parameters", () => {
+      setUrl("/pendulum-wave", "pendulumCount=20.5&baseOscillations=24.5");
+
+      const result = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(result.settings.pendulumCount).toBe(
+        DEFAULT_PENDULUM_WAVE_SETTINGS.pendulumCount,
+      );
+
+      expect(result.settings.baseOscillations).toBe(
+        DEFAULT_PENDULUM_WAVE_SETTINGS.baseOscillations,
+      );
+    });
+  });
+
+  describe("setSimulationInUrl", () => {
+    it("serializes a seed without serializing simulation identity", () => {
+      const seed = 12345;
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: createPendulumWaveRandomConfig(seed),
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(window.location.pathname).toBe("/pendulum-wave");
+
+      expect(params.get("seed")).toBe("12345");
+      expect(params.get("simulation")).toBeNull();
+    });
+
+    it("serializes values that differ from the seeded configuration", () => {
+      const seed = 12345;
+
+      const generated = createPendulumWaveRandomConfig(seed);
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: {
+          ...generated,
+          pendulumCount: 36,
+          amplitude: 0.42,
+        },
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("seed")).toBe(String(seed));
+
+      expect(params.get("pendulumCount")).toBe("36");
+      expect(params.get("amplitude")).toBe("0.42");
+    });
+
+    it("omits values that match the seeded configuration", () => {
+      const seed = 12345;
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: createPendulumWaveRandomConfig(seed),
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.has("pendulumCount")).toBe(false);
+      expect(params.has("baseOscillations")).toBe(false);
+      expect(params.has("wavePeriod")).toBe(false);
+      expect(params.has("amplitude")).toBe(false);
+      expect(params.has("startingHue")).toBe(false);
+    });
+
+    it("serializes explicit overrides from the default configuration", () => {
+      const state = createPendulumWaveState({
+        settings: {
+          ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+          pendulumCount: 36,
+          baseOscillations: 30,
+          wavePeriod: 110,
+          amplitude: 0.45,
+          startingHue: 90,
+        },
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const params = new URLSearchParams(window.location.search);
+
+      expect(params.get("pendulumCount")).toBe("36");
+      expect(params.get("baseOscillations")).toBe("30");
+      expect(params.get("wavePeriod")).toBe("110");
+      expect(params.get("amplitude")).toBe("0.45");
+      expect(params.get("startingHue")).toBe("90");
+    });
+
+    it("preserves the Pendulum Wave pathname when replacing URL state", () => {
+      const seed = 12345;
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: createPendulumWaveRandomConfig(seed),
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      expect(window.location.pathname).toBe("/pendulum-wave");
+
+      expect(window.location.search).toContain("seed=12345");
+
+      expect(window.location.search).not.toContain("simulation=");
+    });
+
+    it("preserves the pathname when pushing URL state", () => {
+      const before = window.history.length;
+      const seed = 12345;
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: createPendulumWaveRandomConfig(seed),
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS, "push");
+
+      expect(window.history.length).toBe(before + 1);
+
+      expect(window.location.pathname).toBe("/pendulum-wave");
+    });
+
+    it("rejects state for a different simulation", () => {
+      const state = createPendulumWaveState({
+        simulation: "lorenz",
+      });
+
+      expect(() => {
+        setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+      }).toThrow(/does not match URL codec/i);
+    });
+  });
+
+  describe("getSimulationShareUrl", () => {
+    it("preserves the Pendulum Wave pathname", () => {
+      const seed = 12345;
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: createPendulumWaveRandomConfig(seed),
+      });
+
+      const url = new URL(
+        getSimulationShareUrl(state, pendulumWaveCodec, DEFAULTS),
+      );
+
+      expect(url.pathname).toBe("/pendulum-wave");
+      expect(url.searchParams.get("seed")).toBe("12345");
+
+      expect(url.searchParams.get("simulation")).toBeNull();
+    });
+
+    it("includes Pendulum Wave overrides", () => {
+      const seed = 12345;
+
+      const generated = createPendulumWaveRandomConfig(seed);
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: {
+          ...generated,
+          wavePeriod: 100,
+          amplitude: 0.4,
+        },
+      });
+
+      const url = new URL(
+        getSimulationShareUrl(state, pendulumWaveCodec, DEFAULTS),
+      );
+
+      expect(url.searchParams.get("wavePeriod")).toBe("100");
+
+      expect(url.searchParams.get("amplitude")).toBe("0.4");
+    });
+
+    it("does not modify the current browser URL", () => {
+      setUrl("/pendulum-wave", "foo=bar");
+
+      const beforeUrl = window.location.href;
+      const beforeHistoryLength = window.history.length;
+
+      const state = createPendulumWaveState({
+        seed: 12345,
+        settings: createPendulumWaveRandomConfig(12345),
+      });
+
+      getSimulationShareUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      expect(window.location.href).toBe(beforeUrl);
+
+      expect(window.history.length).toBe(beforeHistoryLength);
+    });
+
+    it("rejects state for a different simulation", () => {
+      const state = createPendulumWaveState({
+        simulation: "double-pendulum",
+      });
+
+      expect(() => {
+        getSimulationShareUrl(state, pendulumWaveCodec, DEFAULTS);
+      }).toThrow(/does not match URL codec/i);
+    });
+  });
+
+  describe("round trips", () => {
+    it("round-trips a seeded Pendulum Wave configuration", () => {
+      const seed = 987654321;
+
+      const generated = createPendulumWaveRandomConfig(seed);
+
+      const state = createPendulumWaveState({
+        seed,
+        settings: generated,
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const loaded = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(window.location.pathname).toBe("/pendulum-wave");
+
+      expect(loaded.simulation).toBe("pendulum-wave");
+
+      expect(loaded.seed).toBe(seed);
+
+      expectPendulumWaveSettingsEqual(loaded.settings, generated);
+    });
+
+    it("round-trips seeded settings with explicit overrides", () => {
+      const seed = 987654321;
+
+      const generated = createPendulumWaveRandomConfig(seed);
+
+      const settings: PendulumWaveSettings = {
+        ...generated,
+        pendulumCount: 36,
+        wavePeriod: 105,
+        amplitude: 0.42,
+        startingHue: 72,
+      };
+
+      const state = createPendulumWaveState({
+        seed,
+        settings,
+        shared: {
+          ...DEFAULT_VISUAL_SETTINGS,
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          glow: 175,
+          palette: "rainbow",
+          simulationSpeed: 0.75,
+        },
+      });
+
+      setSimulationInUrl(state, pendulumWaveCodec, DEFAULTS);
+
+      const loaded = loadSimulationFromUrl(pendulumWaveCodec, DEFAULTS);
+
+      expect(loaded.seed).toBe(seed);
+
+      expectPendulumWaveSettingsEqual(loaded.settings, settings);
+
+      expect(loaded.shared.glow).toBe(175);
+      expect(loaded.shared.palette).toBe("rainbow");
+      expect(loaded.shared.simulationSpeed).toBe(0.75);
+
+      expect(loaded.shared.paused).toBe(false);
     });
   });
 });

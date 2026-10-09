@@ -7,6 +7,7 @@ describe("simulation catalogue", () => {
     expect(SIMULATIONS.map((simulation) => simulation.id)).toEqual([
       "double-pendulum",
       "lorenz",
+      "pendulum-wave",
     ]);
   });
 

@@ -7,11 +7,15 @@ import type {
 } from "../types/simulation";
 
 /**
- * Animated double-pendulum canvas.
+ * Shared Canvas host for mathematical simulations.
  *
- * React owns the component lifecycle, but simulation/rendering state is
- * kept outside React state so the animation loop does not trigger React
- * re-renders.
+ * React owns the component lifecycle and runtime configuration, while
+ * simulation and rendering state remain outside React state so the animation
+ * loop does not trigger React re-renders.
+ *
+ * Persistent trajectory history is rendered on the trail canvas. The
+ * foreground canvas is cleared every frame and contains only the simulation's
+ * current geometry.
  */
 interface SimulationCanvasProps {
   runtimeSettings: SimulationRuntimeSettings;
@@ -101,6 +105,12 @@ export function SimulationCanvas({
       },
     });
 
+    const clearForegroundCanvas = (): void => {
+      const { width, height } = viewportController.viewport;
+
+      context.clearRect(0, 0, width, height);
+    };
+
     const clearTrailCanvas = (): void => {
       const { width, height } = viewportController.viewport;
 
@@ -128,6 +138,7 @@ export function SimulationCanvas({
 
         simulation.reset();
         clearTrailCanvas();
+        clearForegroundCanvas();
       }
 
       if (currentRuntimeSettings.paused) {
@@ -155,16 +166,20 @@ export function SimulationCanvas({
           palette: currentRuntimeSettings.palette,
           trailLifetime: currentRuntimeSettings.trailLifetime,
           glow: currentRuntimeSettings.glow,
-          width: viewportController.viewport.width,
-          height: viewportController.viewport.height,
+          width,
+          height,
         },
       });
 
-      simulation.renderForeground(
-        context,
-        viewportController.viewport.width,
-        viewportController.viewport.height,
-      );
+      /*
+       * Foreground geometry represents only the simulation's current state.
+       * Clear the previous frame before drawing the new one.
+       *
+       * Persistent trajectory history belongs exclusively to the trail canvas.
+       */
+      context.clearRect(0, 0, width, height);
+
+      simulation.renderForeground(context, width, height);
 
       animationFrame = requestAnimationFrame(frame);
     };
@@ -212,7 +227,7 @@ export function SimulationCanvas({
       <canvas
         ref={canvasRef}
         className="canvas canvas-foreground"
-        aria-label="Animated double pendulum"
+        aria-label="Animated mathematical simulation"
       />
     </div>
   );
