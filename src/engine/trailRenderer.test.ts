@@ -202,7 +202,7 @@ describe("renderTrail", () => {
     },
   );
 
-  it("creates a gradient for the core trail", () => {
+  it("renders the core trail without a screen-space gradient", () => {
     const context = createMockContext();
     const trail = createTrail();
 
@@ -222,9 +222,52 @@ describe("renderTrail", () => {
       sequence: 1,
     });
 
-    render(context, trail);
+    render(context, trail, {
+      glow: 0,
+    });
 
-    expect(context.createLinearGradient).toHaveBeenCalledWith(10, 20, 30, 40);
+    expect(context.createLinearGradient).not.toHaveBeenCalled();
+
+    expect(context.moveTo).toHaveBeenCalledWith(10, 20);
+    expect(context.lineTo).toHaveBeenCalledWith(30, 40);
+    expect(context.stroke).toHaveBeenCalled();
+  });
+
+  it("overlaps core colour batches so the rendered trail remains continuous", () => {
+    const context = createMockContext();
+    const trail = createTrail(32);
+
+    for (let sequence = 0; sequence < 20; sequence += 1) {
+      addPoint(trail, {
+        x: sequence * 10,
+        y: sequence * 5,
+        time: 1_500 + sequence * 10,
+        hue: sequence * 10,
+        sequence,
+      });
+    }
+
+    render(context, trail, {
+      glow: 0,
+    });
+
+    /*
+     * CORE_COLOUR_BATCH_SIZE is 8, so the expected core batches are:
+     *
+     * 0 -> 8
+     * 8 -> 16
+     * 16 -> 19
+     *
+     * The repeated boundary coordinates demonstrate that adjacent batches
+     * share their endpoint rather than leaving a missing segment.
+     */
+    expect(context.moveTo).toHaveBeenCalledWith(0, 0);
+    expect(context.moveTo).toHaveBeenCalledWith(80, 40);
+    expect(context.moveTo).toHaveBeenCalledWith(160, 80);
+
+    expect(context.lineTo).toHaveBeenCalledWith(80, 40);
+    expect(context.lineTo).toHaveBeenCalledWith(160, 80);
+    expect(context.lineTo).toHaveBeenCalledWith(190, 95);
   });
 
   it("configures rounded trail geometry", () => {

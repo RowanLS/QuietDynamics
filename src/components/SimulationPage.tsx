@@ -285,6 +285,9 @@ export function SimulationPage({
               onCopyLink={() => {
                 void onCopyLink();
               }}
+              onClose={() => {
+                setControlsOpen(false);
+              }}
               seed={seed}
             >
               {children}

@@ -17,6 +17,53 @@
 
   color: rgba(255, 255, 255, 0.9);
 }
+.control-panel-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+
+  display: grid;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  color: rgb(255 255 255 / 60%);
+  font-size: 1.3rem;
+  line-height: 1;
+
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+
+  cursor: pointer;
+
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.control-panel-close:hover {
+  color: rgb(255 255 255 / 90%);
+
+  background: rgb(255 255 255 / 7%);
+  border-color: rgb(255 255 255 / 8%);
+}
+
+.control-panel-close:focus-visible {
+  outline: 2px solid rgb(175 225 255 / 90%);
+  outline-offset: 2px;
+}
+
+/*
+ * Prevent the close button overlapping the first section heading.
+ */
+.control-panel > .control-section:first-of-type h2 {
+  padding-right: 2.75rem;
+}
+
 .control-section + .control-section {
   margin-top: 1.2rem;
   padding-top: 1.2rem;
@@ -248,5 +295,7 @@
   .control-panel-close {
     width: 44px;
     height: 44px;
+    top: 0.45rem;
+    right: 0.45rem;
   }
 }

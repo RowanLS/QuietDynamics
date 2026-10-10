@@ -19,7 +19,7 @@ interface ControlPanelProps {
   onReset?: () => void;
   onFullscreen?: () => void;
   onCopyLink?: () => void;
-
+  onClose: () => void;
   seed?: number;
 
   children?: ReactNode;
@@ -40,11 +40,21 @@ export function ControlPanel({
   onReset,
   onFullscreen,
   onCopyLink,
+  onClose,
   seed,
   children,
 }: ControlPanelProps) {
   return (
     <aside className="control-panel">
+      <button
+        type="button"
+        className="control-panel-close"
+        onClick={onClose}
+        aria-label="Close controls"
+        data-no-randomise
+      >
+        <span aria-hidden="true">×</span>
+      </button>
       <section className="control-section">
         <h2>Appearance</h2>
 
