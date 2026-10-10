@@ -52,20 +52,26 @@ export function createPendulumWaveSimulation(
   ): PendulumGeometry => {
     const fraction = count <= 1 ? 0.5 : index / (count - 1);
 
-    const railWidth = Math.min(width * 0.52, 720);
+    const isPortrait = height > width;
+
+    const railWidth = Math.min(width * (isPortrait ? 0.72 : 0.52), 720);
 
     const railLeft = (width - railWidth) / 2;
 
     const pivotX = railLeft + railWidth * fraction;
 
-    const pivotY = Math.max(30, height * 0.08);
+    const pivotY = isPortrait ? height * 0.24 : Math.max(30, height * 0.08);
 
-    const length = Math.min(height * 0.62, width * 0.38);
+    const length = isPortrait
+      ? Math.min(height * 0.4, width * 0.72)
+      : Math.min(height * 0.62, width * 0.38);
 
     return {
       pivotX,
       pivotY,
+
       bobX: pivotX + Math.sin(angle) * length,
+
       bobY: pivotY + Math.cos(angle) * length,
     };
   };
@@ -160,7 +166,10 @@ export function createPendulumWaveSimulation(
 
         context.stroke();
 
-        const bobRadius = Math.max(3, Math.min(5.5, width / 300));
+        const bobRadius = Math.max(
+          3.5,
+          Math.min(5.5, Math.min(width, height) / 220),
+        );
         /*
          * Soft glow without relying on large shadowBlur values.
          */
