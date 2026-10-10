@@ -91,9 +91,13 @@ export function createDoublePendulumSimulation(
   const updatePositions = (width: number, height: number): void => {
     const settings = getSettings();
 
+    const isPortrait = height > width;
+
     const x0 = width * 0.5;
-    const y0 = height * 0.5;
-    const scale = Math.min(width, height) * 0.14;
+
+    const y0 = isPortrait ? height * 0.42 : height * 0.5;
+
+    const scale = Math.min(width, height) * (isPortrait ? 0.18 : 0.14);
 
     const x1 = x0 + Math.sin(state.theta1) * settings.l1 * scale;
     const y1 = y0 + Math.cos(state.theta1) * settings.l1 * scale;
@@ -205,14 +209,8 @@ export function createDoublePendulumSimulation(
     hue = (hue + 0.75 * runtime.rainbowSpeed) % 360;
   };
 
-  const renderForeground = (
-    context: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ): void => {
+  const renderForeground = (context: CanvasRenderingContext2D): void => {
     const settings = getSettings();
-
-    context.clearRect(0, 0, width, height);
 
     context.strokeStyle = "rgba(235, 242, 248, 0.75)";
     context.lineWidth = 1.5;

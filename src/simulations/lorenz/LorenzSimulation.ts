@@ -89,13 +89,46 @@ export function createLorenzSimulation(
     width: number,
     height: number,
   ): LorenzPosition => {
-    const normalisedX = (currentState.x - X_MIN) / (X_MAX - X_MIN);
+    const isPortrait = height > width;
 
-    const normalisedZ = (currentState.z - Z_MIN) / (Z_MAX - Z_MIN);
+    const horizontalPadding = width * (isPortrait ? 0.08 : 0.06);
+
+    const verticalPadding = height * (isPortrait ? 0.2 : 0.08);
+
+    const availableWidth = width - horizontalPadding * 2;
+
+    const availableHeight = height - verticalPadding * 2;
+
+    const modelWidth = X_MAX - X_MIN;
+    const modelHeight = Z_MAX - Z_MIN;
+
+    /*
+     * Use one scale for both axes so the x/z projection retains
+     * its mathematical aspect ratio.
+     */
+    const scale = Math.min(
+      availableWidth / modelWidth,
+      availableHeight / modelHeight,
+    );
+
+    const projectedWidth = modelWidth * scale;
+
+    const projectedHeight = modelHeight * scale;
+
+    const offsetX = (width - projectedWidth) / 2;
+
+    /*
+     * On portrait screens place the attractor slightly below the
+     * exact viewport centre. On landscape screens centre it.
+     */
+    const centreY = isPortrait ? height * 0.54 : height * 0.5;
+
+    const offsetY = centreY - projectedHeight / 2;
 
     return {
-      x: normalisedX * width,
-      y: height - normalisedZ * height,
+      x: offsetX + (currentState.x - X_MIN) * scale,
+
+      y: offsetY + (Z_MAX - currentState.z) * scale,
     };
   };
 
@@ -188,13 +221,7 @@ export function createLorenzSimulation(
     hue = (hue + 0.75 * runtime.rainbowSpeed) % 360;
   };
 
-  const renderForeground = (
-    context: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ): void => {
-    context.clearRect(0, 0, width, height);
-
+  const renderForeground = (context: CanvasRenderingContext2D): void => {
     /*
      * The Lorenz attractor itself is represented by the reusable trail.
      * The foreground only provides a small current-position marker.
