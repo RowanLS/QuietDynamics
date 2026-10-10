@@ -1,7 +1,7 @@
 import doublePendulumPreview from "../assets/previews/double-pendulum.webp";
 import lorenzPreview from "../assets/previews/lorenz.webp";
 import pendulumWavePreview from "../assets/previews/pendulum-wave.webp";
-
+import threeBodyPreview from "../assets/previews/three-body.webp";
 import type { SimulationName } from "../types/simulationName";
 
 export interface SimulationDefinition {
@@ -35,6 +35,14 @@ export const SIMULATIONS = [
       "A field of pendulums drifting through waves of order and disorder.",
     path: "/pendulum-wave",
     preview: pendulumWavePreview,
+  },
+  {
+    id: "three-body",
+    title: "Three-Body Gravity",
+    description:
+      "Three celestial bodies tracing intricate paths under their mutual gravitational pull.",
+    path: "/three-body",
+    preview: threeBodyPreview,
   },
 ] as const satisfies readonly SimulationDefinition[];
 

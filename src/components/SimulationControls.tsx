@@ -8,6 +8,8 @@ import type { ControlSettings } from "../types/settings";
 import type { SimulationName } from "../types/simulationName";
 
 import { assertNever } from "../utils/assertNever";
+import type { ThreeBodySettings } from "../simulations/threeBody/settings";
+import { ThreeBodyControls } from "./ThreeBodyControls";
 
 interface SimulationControlsProps {
   simulationName: SimulationName;
@@ -15,12 +17,14 @@ interface SimulationControlsProps {
   doublePendulumSettings: ControlSettings;
   lorenzSettings: LorenzSettings;
   pendulumWaveSettings: PendulumWaveSettings;
-
+  threeBodySettings: ThreeBodySettings;
   onDoublePendulumChange: (updates: Partial<ControlSettings>) => void;
 
   onLorenzChange: (updates: Partial<LorenzSettings>) => void;
 
   onPendulumWaveChange: (updates: Partial<PendulumWaveSettings>) => void;
+
+  onThreeBodyChange: (updates: Partial<ThreeBodySettings>) => void;
 }
 
 /**
@@ -34,9 +38,11 @@ export function SimulationControls({
   doublePendulumSettings,
   lorenzSettings,
   pendulumWaveSettings,
+  threeBodySettings,
   onDoublePendulumChange,
   onLorenzChange,
   onPendulumWaveChange,
+  onThreeBodyChange,
 }: SimulationControlsProps) {
   switch (simulationName) {
     case "double-pendulum":
@@ -60,6 +66,13 @@ export function SimulationControls({
         />
       );
 
+    case "three-body":
+      return (
+        <ThreeBodyControls
+          settings={threeBodySettings}
+          onChange={onThreeBodyChange}
+        />
+      );
     default:
       return assertNever(simulationName, "Unsupported simulation controls");
   }

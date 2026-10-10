@@ -8,6 +8,7 @@ describe("simulation catalogue", () => {
       "double-pendulum",
       "lorenz",
       "pendulum-wave",
+      "three-body",
     ]);
   });
 
@@ -43,6 +44,7 @@ describe("simulation catalogue", () => {
       "double-pendulum",
       "lorenz",
       "pendulum-wave",
+      "three-body",
     ];
 
     expect(SIMULATIONS.map((simulation) => simulation.id)).toEqual(expected);
