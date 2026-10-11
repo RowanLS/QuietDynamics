@@ -30,6 +30,7 @@ export function createThreeBodySimulation(
   let lastWidth = 0;
   let lastHeight = 0;
   let camera = { x: 0, y: 0 };
+  let cameraSpan = 9;
   const step = 1 / 240;
   const reset = (): void => {
     const settings = getSettings();
@@ -41,10 +42,17 @@ export function createThreeBodySimulation(
     accumulator = 0;
     sequence = 0;
     camera = centreOfMass(bodies);
+    // Family-specific framing; scale follows the similarity transformation.
+    cameraSpan =
+      (settings.family === "hierarchical"
+        ? 15
+        : settings.family === "chaotic"
+          ? 11
+          : 5.5) * settings.scale;
     trails.forEach((trail) => trail.clear());
   };
   const project = (body: Bodies[number], width: number, height: number) => {
-    const zoom = Math.min(width, height) / 9;
+    const zoom = Math.min(width, height) / cameraSpan;
     return {
       x: width / 2 + (body.x - camera.x) * zoom,
       y: height / 2 - (body.y - camera.y) * zoom,
@@ -77,12 +85,12 @@ export function createThreeBodySimulation(
         iterations++;
       }
       if (iterations === 24) accumulator = 0;
-      // Fixed camera on initial centre of mass: no jitter or trailing drift.
+      // Fixed barycentric camera: no jitter or trailing drift.
       bodies.forEach((body, i) => {
         const point = project(body, width, height);
         trails[i].push({
           ...point,
-          hue: (getSettings().startingHue + i * 120) % 360,
+          hue: (getSettings().startingHue + i * 120 + sequence * 0.35) % 360,
           time,
           sequence,
         });

@@ -9,6 +9,117 @@ export interface Body {
 export type Bodies = [Body, Body, Body];
 export type Family = "figure-eight" | "hierarchical" | "chaotic";
 
+/**
+ * Construct a hierarchical triple in barycentric coordinates (G = 1).
+ *
+ * The inner binary has circular relative velocity. The outer body's
+ * tangential speed is a fraction of the circular two-cluster approximation.
+ * Zero total linear momentum prevents artificial camera drift.
+ */
+function orbitalTriple(
+  m1: number,
+  m2: number,
+  m3: number,
+  innerDistance: number,
+  outerDistance: number,
+  outerSpeedFactor: number,
+): Bodies {
+  const innerMass = m1 + m2;
+  const totalMass = innerMass + m3;
+  const innerSpeed = Math.sqrt(innerMass / innerDistance);
+  const outerSpeed = outerSpeedFactor * Math.sqrt(totalMass / outerDistance);
+  const bodies: Bodies = [
+    {
+      x: (-innerDistance * m2) / innerMass,
+      y: 0,
+      vx: 0,
+      vy: (-innerSpeed * m2) / innerMass,
+      mass: m1,
+    },
+    {
+      x: (innerDistance * m1) / innerMass,
+      y: 0,
+      vx: 0,
+      vy: (innerSpeed * m1) / innerMass,
+      mass: m2,
+    },
+    {
+      x: outerDistance,
+      y: 0,
+      vx: 0,
+      vy: outerSpeed,
+      mass: m3,
+    },
+  ];
+  // Shift the inner binary so that its centre of mass counter-orbits the
+  // outer body, and remove the system's net momentum.
+  const innerV = (-m3 * outerSpeed) / innerMass;
+  bodies[0].vy += innerV;
+  bodies[1].vy += innerV;
+  const comX = (m3 * outerDistance) / totalMass;
+  for (const body of bodies) body.x -= comX;
+  return bodies;
+}
+
+/**
+ * Construct an asymmetric, non-hierarchical three-body configuration.
+ *
+ * Unlike orbitalTriple(), this starts with three bodies on comparable
+ * spatial scales rather than an inner binary and distant companion.
+ *
+ * The initial velocities are corrected to eliminate net linear momentum.
+ *
+ * This is an exploratory chaotic configuration, not a validated
+ * long-lived bounded orbit.
+ */
+function chaoticTriple(): Bodies {
+  const bodies: Bodies = [
+    {
+      x: -1.1,
+      y: -0.5,
+      vx: 0.35,
+      vy: 0.35,
+      mass: 1,
+    },
+    {
+      x: 1.0,
+      y: -0.4,
+      vx: -0.3,
+      vy: 0.25,
+      mass: 1.15,
+    },
+    {
+      x: 0.2,
+      y: 1.1,
+      vx: -0.15,
+      vy: -0.55,
+      mass: 0.85,
+    },
+  ];
+
+  const totalMass = bodies.reduce((sum, body) => sum + body.mass, 0);
+
+  const centreX =
+    bodies.reduce((sum, body) => sum + body.mass * body.x, 0) / totalMass;
+
+  const centreY =
+    bodies.reduce((sum, body) => sum + body.mass * body.y, 0) / totalMass;
+
+  const velocityX =
+    bodies.reduce((sum, body) => sum + body.mass * body.vx, 0) / totalMass;
+
+  const velocityY =
+    bodies.reduce((sum, body) => sum + body.mass * body.vy, 0) / totalMass;
+
+  for (const body of bodies) {
+    body.x -= centreX;
+    body.y -= centreY;
+    body.vx -= velocityX;
+    body.vy -= velocityY;
+  }
+
+  return bodies;
+}
 /** Initial states are curated; figure-eight constants are a known periodic orbit. */
 export function initialBodies(
   family: Family,
@@ -47,19 +158,14 @@ export function initialBodies(
       ];
       break;
     case "hierarchical":
-      // Close equal-mass binary and a distant circumbinary companion.
-      bodies = [
-        { x: -0.4, y: 0, vx: 0, vy: -0.790569415, mass: 1 },
-        { x: 0.4, y: 0, vx: 0, vy: 0.790569415, mass: 1 },
-        { x: 0, y: 4, vx: -0.7, vy: 0, mass: 0.3 },
-      ];
+      // Circular inner binary and an approximately circular circumbinary orbit.
+      bodies = orbitalTriple(1, 1, 0.3, 0.8, 5.5, 1);
       break;
     case "chaotic":
-      bodies = [
-        { x: -1, y: -0.2, vx: 0.18, vy: 0.37, mass: 1 },
-        { x: 1.1, y: 0, vx: -0.12, vy: -0.32, mass: 1.2 },
-        { x: 0, y: 1.3, vx: -0.25, vy: 0.08, mass: 0.8 },
-      ];
+      // Compact, unequal-mass, eccentric hierarchical triple. The outer
+      // companion perturbs the inner binary; long-term boundedness is not
+      // guaranteed for a chaotic gravitational system.
+      bodies = chaoticTriple();
       break;
     default: {
       const neverFamily: never = family;
