@@ -244,7 +244,7 @@ export function createDoublePendulumSimulation(
     update,
     renderForeground,
 
-    getTrail: () => trail,
+    getTrails: () => [trail],
 
     resetTiming,
   };

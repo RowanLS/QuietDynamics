@@ -218,8 +218,6 @@ export function createPendulumWaveSimulation(
       context.restore();
     },
 
-    getTrail(): TrailBuffer {
-      return trail;
-    },
+    getTrails: () => [],
   };
 }

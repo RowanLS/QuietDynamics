@@ -640,6 +640,7 @@ function App({ simulationName }: AppProps) {
       ...updates,
     };
 
+    threeBodySettingsRef.current = nextSettings;
     setThreeBodySettings(nextSettings);
 
     const state: SimulationUrlState<ThreeBodySettings> = {

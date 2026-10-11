@@ -11,15 +11,10 @@ import {
 } from "./physics";
 import type { ThreeBodySettings } from "./settings";
 
-/** One trail per body, without altering the existing single-trail contract. */
-export interface ThreeBodySimulation extends Simulation {
-  getTrails(): readonly TrailBuffer[];
-}
-
 export function createThreeBodySimulation(
   getSettings: () => ThreeBodySettings,
   getRuntimeSettings: () => SimulationRuntimeSettings,
-): ThreeBodySimulation {
+): Simulation {
   const trails = [
     new TrailBuffer(1800),
     new TrailBuffer(1800),
@@ -59,9 +54,6 @@ export function createThreeBodySimulation(
     reset,
     resetTiming() {
       accumulator = 0;
-    },
-    getTrail() {
-      return trails[0];
     },
     getTrails() {
       return trails;
