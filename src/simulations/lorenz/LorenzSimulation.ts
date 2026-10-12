@@ -245,6 +245,6 @@ export function createLorenzSimulation(
     resetTiming,
     update,
     renderForeground,
-    getTrail: () => trail,
+    getTrails: () => [trail],
   };
 }

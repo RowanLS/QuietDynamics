@@ -120,7 +120,7 @@ export function renderTrail({
 
   trail.discardBefore(cutoff);
 
-  context.clearRect(0, 0, settings.width, settings.height);
+  //context.clearRect(0, 0, settings.width, settings.height);
 
   if (trail.length < 2) {
     return;

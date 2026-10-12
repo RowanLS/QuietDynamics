@@ -157,19 +157,31 @@ export function SimulationCanvas({
       const { width, height } = viewportController.viewport;
 
       simulation.update(elapsed, time, width, height);
+      /*
+       * Clear the previous frame's rendered trajectories.
+       *
+       * The simulation-owned TrailBuffers retain trajectory history,
+       * so clearing the Canvas does not discard historical positions.
+       *
+       * Clear once per frame, not once per trail.
+       */
+      clearTrailCanvas();
+      const trailSettings = {
+        palette: currentRuntimeSettings.palette,
+        trailLifetime: currentRuntimeSettings.trailLifetime,
+        glow: currentRuntimeSettings.glow,
+        width,
+        height,
+      };
 
-      renderTrail({
-        context: trailContext,
-        trail: simulation.getTrail(),
-        now: time,
-        settings: {
-          palette: currentRuntimeSettings.palette,
-          trailLifetime: currentRuntimeSettings.trailLifetime,
-          glow: currentRuntimeSettings.glow,
-          width,
-          height,
-        },
-      });
+      for (const trail of simulation.getTrails()) {
+        renderTrail({
+          context: trailContext,
+          trail,
+          now: time,
+          settings: trailSettings,
+        });
+      }
 
       /*
        * Foreground geometry represents only the simulation's current state.

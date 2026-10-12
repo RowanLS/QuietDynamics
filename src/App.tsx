@@ -16,6 +16,11 @@ import { createRandomConfig as createPendulumWaveRandomConfig } from "./simulati
 import type { PendulumWaveSettings } from "./simulations/pendulumWave/settings";
 import { createPendulumWaveUrlCodec } from "./simulations/pendulumWave/url";
 
+import { createThreeBodySimulation } from "./simulations/threeBody/ThreeBodySimulation";
+import { createRandomConfig as createThreeBodyRandomConfig } from "./simulations/threeBody/randomise";
+import type { ThreeBodySettings } from "./simulations/threeBody/settings";
+import { createThreeBodyUrlCodec } from "./simulations/threeBody/url";
+
 import { getSimulationDefinition } from "./simulations/catalogue";
 import { SimulationControls } from "./components/SimulationControls";
 import { assertNever } from "./utils/assertNever";
@@ -85,6 +90,13 @@ const DEFAULT_PENDULUM_WAVE_SETTINGS: PendulumWaveSettings = {
   startingHue: 200,
 };
 
+const DEFAULT_THREE_BODY_SETTINGS: ThreeBodySettings = {
+  family: "figure-eight",
+  scale: 1,
+  velocityFactor: 1,
+  startingHue: 200,
+};
+
 const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   background: "#071018",
   palette: "neon-rainbow",
@@ -120,6 +132,11 @@ const PENDULUM_WAVE_URL_CODEC = createPendulumWaveUrlCodec(
   DEFAULT_PENDULUM_WAVE_SETTINGS,
 );
 
+const THREE_BODY_URL_CODEC = createThreeBodyUrlCodec(
+  // createThreeBodyRandomConfig,
+  DEFAULT_THREE_BODY_SETTINGS,
+);
+
 // INITIAL STATE
 
 interface InitialAppState {
@@ -130,6 +147,7 @@ interface InitialAppState {
   doublePendulumSettings: ControlSettings;
   lorenzSettings: LorenzSettings;
   pendulumWaveSettings: PendulumWaveSettings;
+  threeBodySettings: ThreeBodySettings;
 }
 
 function createSharedInitialState(loaded: {
@@ -170,6 +188,9 @@ function loadInitialAppState(simulation: SimulationName): InitialAppState {
         pendulumWaveSettings: {
           ...DEFAULT_PENDULUM_WAVE_SETTINGS,
         },
+        threeBodySettings: {
+          ...DEFAULT_THREE_BODY_SETTINGS,
+        },
       };
     }
 
@@ -185,6 +206,9 @@ function loadInitialAppState(simulation: SimulationName): InitialAppState {
         lorenzSettings: loaded.settings,
         pendulumWaveSettings: {
           ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+        },
+        threeBodySettings: {
+          ...DEFAULT_THREE_BODY_SETTINGS,
         },
       };
     }
@@ -204,7 +228,32 @@ function loadInitialAppState(simulation: SimulationName): InitialAppState {
         lorenzSettings: {
           ...DEFAULT_LORENZ_SETTINGS,
         },
+        threeBodySettings: {
+          ...DEFAULT_THREE_BODY_SETTINGS,
+        },
         pendulumWaveSettings: loaded.settings,
+      };
+    }
+
+    case "three-body": {
+      const loaded = loadSimulationFromUrl(
+        THREE_BODY_URL_CODEC,
+        DEFAULT_URL_STATE,
+      );
+
+      return {
+        simulation,
+        ...createSharedInitialState(loaded),
+        doublePendulumSettings: {
+          ...DEFAULT_DOUBLE_PENDULUM_SETTINGS,
+        },
+        lorenzSettings: {
+          ...DEFAULT_LORENZ_SETTINGS,
+        },
+        pendulumWaveSettings: {
+          ...DEFAULT_PENDULUM_WAVE_SETTINGS,
+        },
+        threeBodySettings: loaded.settings,
       };
     }
 
@@ -299,6 +348,26 @@ function App({ simulationName }: AppProps) {
     [],
   );
 
+  // THREE BODY
+
+  const [threeBodySettings, setThreeBodySettings] = useState<ThreeBodySettings>(
+    initialState.threeBodySettings,
+  );
+
+  const threeBodySettingsRef = useRef(threeBodySettings);
+
+  useEffect(() => {
+    pendulumWaveSettingsRef.current = pendulumWaveSettings;
+  }, [pendulumWaveSettings]);
+
+  const createThreeBody = useCallback(
+    (getRuntimeSettings: () => SimulationRuntimeSettings): Simulation =>
+      createThreeBodySimulation(
+        () => threeBodySettingsRef.current,
+        getRuntimeSettings,
+      ),
+    [],
+  );
   // ACTIVE SIMULATION
 
   const createActiveSimulation = useCallback(
@@ -313,11 +382,20 @@ function App({ simulationName }: AppProps) {
         case "pendulum-wave":
           return createPendulumWave(getRuntimeSettings);
 
+        case "three-body":
+          return createThreeBody(getRuntimeSettings);
+
         default:
           return assertNever(simulationName, "Unsupported active simulation");
       }
     },
-    [createDoublePendulum, createLorenz, createPendulumWave, simulationName],
+    [
+      createDoublePendulum,
+      createLorenz,
+      createPendulumWave,
+      createThreeBody,
+      simulationName,
+    ],
   );
 
   // SHARED URL SERIALISATION
@@ -387,6 +465,24 @@ function App({ simulationName }: AppProps) {
           return;
         }
 
+        case "three-body": {
+          const state: SimulationUrlState<ThreeBodySettings> = {
+            simulation: "three-body",
+            seed,
+            settings: threeBodySettings,
+            shared,
+          };
+
+          setSimulationInUrl(
+            state,
+            THREE_BODY_URL_CODEC,
+            DEFAULT_URL_STATE,
+            "replace",
+          );
+
+          return;
+        }
+
         default:
           return assertNever(
             simulationName,
@@ -398,6 +494,7 @@ function App({ simulationName }: AppProps) {
       doublePendulumSettings,
       lorenzSettings,
       pendulumWaveSettings,
+      threeBodySettings,
       seed,
       simulationName,
     ],
@@ -535,6 +632,41 @@ function App({ simulationName }: AppProps) {
     setResetVersion((version) => version + 1);
   };
 
+  const updateThreeBodySettings = (
+    updates: Partial<ThreeBodySettings>,
+  ): void => {
+    const nextSettings = {
+      ...threeBodySettings,
+      ...updates,
+    };
+
+    threeBodySettingsRef.current = nextSettings;
+    setThreeBodySettings(nextSettings);
+
+    const state: SimulationUrlState<ThreeBodySettings> = {
+      simulation: "three-body",
+      seed,
+      settings: nextSettings,
+      shared: {
+        ...visualSettings,
+        ...playbackSettings,
+      },
+    };
+
+    setSimulationInUrl(
+      state,
+      THREE_BODY_URL_CODEC,
+      DEFAULT_URL_STATE,
+      "replace",
+    );
+
+    /*
+     * Every exposed Pendulum Wave parameter changes the mathematical
+     * configuration, so restart the wave from its aligned state.
+     */
+    setResetVersion((version) => version + 1);
+  };
+
   // COPY LINK
 
   const getShareUrl = (): string => {
@@ -577,6 +709,18 @@ function App({ simulationName }: AppProps) {
             shared,
           },
           PENDULUM_WAVE_URL_CODEC,
+          DEFAULT_URL_STATE,
+        );
+
+      case "three-body":
+        return getSimulationShareUrl(
+          {
+            simulation: "three-body",
+            seed,
+            settings: threeBodySettings,
+            shared,
+          },
+          THREE_BODY_URL_CODEC,
           DEFAULT_URL_STATE,
         );
 
@@ -691,6 +835,30 @@ function App({ simulationName }: AppProps) {
         return;
       }
 
+      case "three-body": {
+        const nextSettings = createThreeBodyRandomConfig(nextSeed);
+
+        const nextState: SimulationUrlState<ThreeBodySettings> = {
+          simulation: "three-body",
+          seed: nextSeed,
+          settings: nextSettings,
+          shared,
+        };
+
+        setSeed(nextSeed);
+        setThreeBodySettings(nextSettings);
+        setResetVersion((version) => version + 1);
+
+        setSimulationInUrl(
+          nextState,
+          THREE_BODY_URL_CODEC,
+          DEFAULT_URL_STATE,
+          "push",
+        );
+
+        return;
+      }
+
       default:
         return assertNever(
           simulationName,
@@ -724,9 +892,11 @@ function App({ simulationName }: AppProps) {
         doublePendulumSettings={doublePendulumSettings}
         lorenzSettings={lorenzSettings}
         pendulumWaveSettings={pendulumWaveSettings}
+        threeBodySettings={threeBodySettings}
         onDoublePendulumChange={updateDoublePendulumSettings}
         onLorenzChange={updateLorenzSettings}
         onPendulumWaveChange={updatePendulumWaveSettings}
+        onThreeBodyChange={updateThreeBodySettings}
       />
     </SimulationPage>
   );

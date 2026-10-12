@@ -33,9 +33,14 @@ export interface Simulation {
   ): void;
 
   /**
-   * Return the simulation-owned trajectory buffer.
+   * Returns the simulation's trajectory buffers.
+   *
+   * Each buffer represents an independent continuous trajectory.
+   * Simulations without trajectories return an empty array.
+   *
+   * The returned buffers are owned by the simulation.
    */
-  getTrail(): TrailBuffer;
+  getTrails(): readonly TrailBuffer[];
 }
 
 export interface SimulationRuntimeSettings extends PlaybackSettings {
