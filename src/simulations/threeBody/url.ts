@@ -1,7 +1,7 @@
 import type { UrlCodec } from "../../utils/urlState";
 import type { ThreeBodySettings } from "./settings";
 import { createRandomConfig } from "./randomise";
-const FAMILIES = ["figure-eight", "hierarchical", "chaotic"] as const;
+const FAMILIES = ["figure-eight", "hierarchical"] as const;
 export function createThreeBodyUrlCodec(
   defaults: ThreeBodySettings,
 ): UrlCodec<ThreeBodySettings> {

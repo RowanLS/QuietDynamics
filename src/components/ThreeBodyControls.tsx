@@ -1,5 +1,7 @@
 import { Slider } from "./Slider";
 import type { ThreeBodySettings } from "../simulations/threeBody/settings";
+import "./ControlPanel.css";
+
 interface Props {
   settings: ThreeBodySettings;
   onChange: (updates: Partial<ThreeBodySettings>) => void;
@@ -8,7 +10,9 @@ export function ThreeBodyControls({ settings, onChange }: Props) {
   return (
     <section className="control-section">
       <h2>Three-Body Gravity</h2>
-      <label htmlFor="three-body-family">Configuration</label>
+      <label htmlFor="three-body-family" className="control">
+        Configuration
+      </label>
       <select
         id="three-body-family"
         value={settings.family}
@@ -20,7 +24,6 @@ export function ThreeBodyControls({ settings, onChange }: Props) {
       >
         <option value="figure-eight">Figure-eight</option>
         <option value="hierarchical">Hierarchical</option>
-        <option value="chaotic">Chaotic</option>
       </select>
       <Slider
         label="Separation"

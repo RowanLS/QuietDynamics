@@ -1,7 +1,7 @@
 import type { ThreeBodySettings } from "./settings";
 import { mulberry32 } from "../doublePendulum/randomise";
 import type { Family } from "./physics";
-const FAMILIES: readonly Family[] = ["figure-eight", "hierarchical", "chaotic"];
+const FAMILIES: readonly Family[] = ["figure-eight", "hierarchical"];
 /** Reconstruct the same curated configuration from the same unsigned seed. */
 export function createRandomConfig(seed: number): ThreeBodySettings {
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) {

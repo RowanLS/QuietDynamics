@@ -44,11 +44,7 @@ export function createThreeBodySimulation(
     camera = centreOfMass(bodies);
     // Family-specific framing; scale follows the similarity transformation.
     cameraSpan =
-      (settings.family === "hierarchical"
-        ? 15
-        : settings.family === "chaotic"
-          ? 11
-          : 5.5) * settings.scale;
+      (settings.family === "hierarchical" ? 15 : 3.5) * settings.scale;
     trails.forEach((trail) => trail.clear());
   };
   const project = (body: Bodies[number], width: number, height: number) => {

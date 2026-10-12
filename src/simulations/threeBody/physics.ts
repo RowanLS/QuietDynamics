@@ -7,7 +7,7 @@ export interface Body {
   mass: number;
 }
 export type Bodies = [Body, Body, Body];
-export type Family = "figure-eight" | "hierarchical" | "chaotic";
+export type Family = "figure-eight" | "hierarchical";
 
 /**
  * Construct a hierarchical triple in barycentric coordinates (G = 1).
@@ -61,65 +61,6 @@ function orbitalTriple(
   return bodies;
 }
 
-/**
- * Construct an asymmetric, non-hierarchical three-body configuration.
- *
- * Unlike orbitalTriple(), this starts with three bodies on comparable
- * spatial scales rather than an inner binary and distant companion.
- *
- * The initial velocities are corrected to eliminate net linear momentum.
- *
- * This is an exploratory chaotic configuration, not a validated
- * long-lived bounded orbit.
- */
-function chaoticTriple(): Bodies {
-  const bodies: Bodies = [
-    {
-      x: -1.1,
-      y: -0.5,
-      vx: 0.35,
-      vy: 0.35,
-      mass: 1,
-    },
-    {
-      x: 1.0,
-      y: -0.4,
-      vx: -0.3,
-      vy: 0.25,
-      mass: 1.15,
-    },
-    {
-      x: 0.2,
-      y: 1.1,
-      vx: -0.15,
-      vy: -0.55,
-      mass: 0.85,
-    },
-  ];
-
-  const totalMass = bodies.reduce((sum, body) => sum + body.mass, 0);
-
-  const centreX =
-    bodies.reduce((sum, body) => sum + body.mass * body.x, 0) / totalMass;
-
-  const centreY =
-    bodies.reduce((sum, body) => sum + body.mass * body.y, 0) / totalMass;
-
-  const velocityX =
-    bodies.reduce((sum, body) => sum + body.mass * body.vx, 0) / totalMass;
-
-  const velocityY =
-    bodies.reduce((sum, body) => sum + body.mass * body.vy, 0) / totalMass;
-
-  for (const body of bodies) {
-    body.x -= centreX;
-    body.y -= centreY;
-    body.vx -= velocityX;
-    body.vy -= velocityY;
-  }
-
-  return bodies;
-}
 /** Initial states are curated; figure-eight constants are a known periodic orbit. */
 export function initialBodies(
   family: Family,
@@ -160,12 +101,6 @@ export function initialBodies(
     case "hierarchical":
       // Circular inner binary and an approximately circular circumbinary orbit.
       bodies = orbitalTriple(1, 1, 0.3, 0.8, 5.5, 1);
-      break;
-    case "chaotic":
-      // Compact, unequal-mass, eccentric hierarchical triple. The outer
-      // companion perturbs the inner binary; long-term boundedness is not
-      // guaranteed for a chaotic gravitational system.
-      bodies = chaoticTriple();
       break;
     default: {
       const neverFamily: never = family;
@@ -214,7 +149,7 @@ export function advanceBodies(
     dt < 0 ||
     dt > 0.05 ||
     !Number.isFinite(softening) ||
-    softening <= 0
+    softening < 0
   ) {
     throw new RangeError("Invalid integration step or softening");
   }
