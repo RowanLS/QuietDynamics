@@ -1,4 +1,4 @@
-import type { SimulationDefinition } from "../simulations/catalogue";
+import type { SimulationMetadata } from "../simulations/catalogue";
 
 const UINT32_RANGE = 0x1_0000_0000;
 
@@ -8,9 +8,9 @@ const UINT32_RANGE = 0x1_0000_0000;
  * randomValue is injectable so selection can be tested deterministically.
  */
 export function chooseRandomSimulation(
-  simulations: readonly SimulationDefinition[],
+  simulations: readonly SimulationMetadata[],
   randomValue: number = Math.random(),
-): SimulationDefinition {
+): SimulationMetadata {
   if (simulations.length === 0) {
     throw new Error("Cannot choose a simulation from an empty catalogue.");
   }
@@ -28,7 +28,7 @@ export function chooseRandomSimulation(
  * Build a reproducible URL for a randomly selected simulation.
  */
 export function createRandomSimulationPath(
-  simulations: readonly SimulationDefinition[],
+  simulations: readonly SimulationMetadata[],
   seed: number,
   randomValue: number = Math.random(),
 ): string {

@@ -271,7 +271,7 @@ interface AppProps {
 
 function App({ simulationName }: AppProps) {
   // SHARED STATE
-  const simulationDefinition = getSimulationDefinition(simulationName);
+  const SimulationDefinition = getSimulationDefinition(simulationName);
 
   const [initialState] = useState(() => loadInitialAppState(simulationName));
 
@@ -873,7 +873,7 @@ function App({ simulationName }: AppProps) {
   ]);
   return (
     <SimulationPage
-      title={simulationDefinition.title}
+      title={SimulationDefinition.title}
       seed={seed}
       visualSettings={visualSettings}
       playbackSettings={playbackSettings}

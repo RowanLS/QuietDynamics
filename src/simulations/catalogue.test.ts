@@ -78,3 +78,11 @@ describe("simulation catalogue", () => {
     }
   });
 });
+
+describe("simulation registrations", () => {
+  it("keeps codec identities consistent with registrations", () => {
+    for (const definition of SIMULATIONS) {
+      expect(definition.codec.simulation).toBe(definition.id);
+    }
+  });
+});

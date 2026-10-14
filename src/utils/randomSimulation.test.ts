@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import doublePendulumPreview from "../assets/previews/double-pendulum.webp";
 import lorenzPreview from "../assets/previews/lorenz.webp";
-import type { SimulationDefinition } from "../simulations/catalogue";
+import type { SimulationMetadata } from "../simulations/catalogue";
 import {
   chooseRandomSimulation,
   createRandomSimulationPath,
 } from "./randomSimulation";
 
-const simulations: readonly SimulationDefinition[] = [
+const simulations: readonly SimulationMetadata[] = [
   {
     id: "double-pendulum",
     title: "Double Pendulum",
