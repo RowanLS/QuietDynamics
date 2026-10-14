@@ -74,11 +74,11 @@ const DEFAULT_DOUBLE_PENDULUM_SETTINGS: ControlSettings = {
 
 const DEFAULT_LORENZ_SETTINGS: LorenzSettings = {
   sigma: 10,
-  rho: 28,
+  rho: 25,
   beta: 8 / 3,
-  initialX: 0.1,
-  initialY: 0,
-  initialZ: 0,
+  initialX: 0,
+  initialY: -1,
+  initialZ: 20,
   startingHue: 200,
 };
 
